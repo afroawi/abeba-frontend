@@ -39,3 +39,19 @@ The bot and Mini App share an account and active chat pointer. `?session=123` se
 - The development server runs only on loopback. A public Telegram Mini App needs a separately configured HTTPS origin; no tunnel/deployment is created by this scaffold.
 
 Dependencies are pinned in `package.json` and `package-lock.json`. No service worker, persistent private cache or background analytics is installed.
+
+## Docker
+
+Build the compiled app and serve it with unprivileged Nginx on port 8080:
+
+```sh
+docker build -t abeba-frontend .
+docker run --rm -p 127.0.0.1:8080:8080 \
+  --add-host host.docker.internal:host-gateway \
+  -e ABEBA_API_UPSTREAM=http://host.docker.internal:8000 abeba-frontend
+docker build --target test .
+```
+
+`ABEBA_API_UPSTREAM` is a runtime setting for Nginx; the API must be reachable from inside the container. On Linux the host API must listen on an address reachable from Docker's bridge. API requests and cookies stay on the frontend origin. Standalone media requests go to the upstream; the shared stack mounts public media read-only. `/healthz` provides an HTTP liveness check. The build context excludes `.env` files and installed dependencies.
+
+See [`../DOCKER.md`](../DOCKER.md) for the shared Compose stack and optional Telegram service when working in the complete Abeba checkout.

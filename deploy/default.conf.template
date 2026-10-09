@@ -1,0 +1,50 @@
+# Only trust forwarded protocol when access is restricted to a trusted TLS gateway.
+# The shared Compose stack publishes this server on loopback by default.
+map $http_x_forwarded_proto $abeba_forwarded_proto {
+    default $scheme;
+    https https;
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    client_max_body_size 20m;
+
+    # Docker's embedded DNS also follows backend container replacements.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $abeba_api_upstream "${ABEBA_API_UPSTREAM}";
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location ~ ^/(api|admin|static)(/|$) {
+        proxy_pass $abeba_api_upstream$request_uri;
+        include /etc/nginx/proxy_params.abeba;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # Shared Compose mounts the backend's public media volume here. Standalone
+    # images fall back to the configured upstream's existing media server.
+    location /media/ {
+        root /srv;
+        try_files $uri @upstream_media;
+    }
+    location @upstream_media {
+        proxy_pass $abeba_api_upstream$request_uri;
+        include /etc/nginx/proxy_params.abeba;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+}
