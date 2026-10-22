@@ -5,6 +5,13 @@ map $http_x_forwarded_proto $abeba_forwarded_proto {
     https https;
 }
 
+# HTTPS upstreams need their own Host for virtual-host routing and SNI.
+# Keep the original host for local HTTP development upstreams.
+map $abeba_api_upstream $abeba_backend_host {
+    default $http_host;
+    ~^https:// $proxy_host;
+}
+
 server {
     listen 8080;
     server_name _;

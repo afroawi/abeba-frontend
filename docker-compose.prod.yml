@@ -1,0 +1,20 @@
+name: abeba-frontend
+services:
+  frontend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18150:8080"
+    environment:
+      ABEBA_API_UPSTREAM: ${ABEBA_API_UPSTREAM:-https://dashboard.abebachat.com}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /etc/nginx/conf.d:size=1m,uid=101,gid=101,mode=0755
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -12,6 +12,9 @@ COPY . .
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine AS runtime
+USER root
+RUN apk add --no-cache ca-certificates
+USER 101
 ENV ABEBA_API_UPSTREAM=http://backend:8000 \
     NGINX_ENVSUBST_FILTER=^ABEBA_API_UPSTREAM$
 COPY deploy/proxy_params.abeba /etc/nginx/proxy_params.abeba

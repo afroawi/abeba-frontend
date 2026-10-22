@@ -20,7 +20,7 @@ npm test
 npm run build
 ```
 
-Only `.env.example` belongs in version control. Frontend configuration contains no bot token, service secret or AI key.
+Only `.env.example` and `.env.production.example` belong in version control. Frontend configuration contains no bot token, service secret or AI key.
 
 ## Telegram chat
 
@@ -65,3 +65,7 @@ docker build --target test .
 `ABEBA_API_UPSTREAM` is a runtime setting for Nginx; the API must be reachable from inside the container. On Linux the host API must listen on an address reachable from Docker's bridge. API requests and cookies stay on the frontend origin. Standalone media requests go to the upstream; the shared stack mounts public media read-only. `/healthz` provides an HTTP liveness check. The build context excludes `.env` files and installed dependencies.
 
 See [`../DOCKER.md`](../DOCKER.md) for the shared Compose stack and optional Telegram service when working in the complete Abeba checkout.
+
+## Deploy web.abebachat.com
+
+Use [DEPLOYMENT.md](DEPLOYMENT.md), `.env.production.example` and `docker-compose.prod.yml` for the existing server. The host Nginx block is in `deploy/host-nginx.conf`.
