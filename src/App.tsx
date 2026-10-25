@@ -59,13 +59,11 @@ function ErrorNotice({ error }: { error: unknown }) {
   ) : null;
 }
 
+// Viewports trim transparent export padding while keeping the supplied artwork intact.
 function BrandFlower({ className = "" }: { className?: string }) {
   return (
-    <svg className={`brand-flower ${className}`} viewBox="0 0 64 64" fill="currentColor" aria-hidden="true">
-      {[0, 72, 144, 216, 288].map((angle) => (
-        <ellipse key={angle} cx="32" cy="17" rx="9" ry="16" transform={`rotate(${angle} 32 32)`} />
-      ))}
-      <circle cx="32" cy="32" r="6" className="flower-center" />
+    <svg className={`brand-flower ${className}`} viewBox="0 32 110 110" aria-hidden="true">
+      <image href="/brand/abeba-logo-white.png" width="420" height="178" />
     </svg>
   );
 }
@@ -79,7 +77,13 @@ function LeafMotif({ className = "" }: { className?: string }) {
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <Link className={`brand ${compact ? "brand-compact" : ""}`} to="/home" aria-label="Abeba home"><BrandFlower /><span>Abeba</span></Link>;
+  return (
+    <Link className={`brand ${compact ? "brand-compact" : ""}`} to="/home" aria-label="Abeba home">
+      <svg className="brand-logo" viewBox="0 32 388 109" aria-hidden="true">
+        <image href="/brand/abeba-logo-white.png" width="420" height="178" />
+      </svg>
+    </Link>
+  );
 }
 
 export default function App() {
@@ -192,7 +196,7 @@ function HomePage() {
     <div className="page home-page">
       <section className="home-hero" aria-labelledby="hero-heading">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="tiny-flower">✳</span> YOUR SPACE TO ASK. LEARN. GROW.</p>
+          <p className="eyebrow"><BrandFlower className="tiny-flower" /> YOUR SPACE TO ASK. LEARN. GROW.</p>
           <h1 id="hero-heading">A little knowledge.<br />A lot of <em>confidence.</em></h1>
           <p className="hero-description">Big feelings, changing bodies, everyday questions. Find information and a little support for the things that matter to you.</p>
           <div className="hero-actions"><Link className="button" to="/chat">Let’s talk <ArrowUpRight size={20} /></Link><Link className="hero-secondary" to="/learn">Explore topics <ArrowRight size={18} /></Link></div>
@@ -621,7 +625,7 @@ function ChatPage({
       />
       {!session ? (
         <div className="chat-welcome">
-          <img src="/brand/abeba-mascot.png" alt="Abeba mascot" />
+          <img src="/brand/abeba-welcome.png" alt="Abeba smiles and welcomes you" width="694" height="994" />
           <h2>Your questions belong here.</h2>
           <p>
             {mini
