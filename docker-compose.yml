@@ -1,4 +1,4 @@
-name: abeba-frontend
+version: "3.7"
 services:
   frontend:
     build: .

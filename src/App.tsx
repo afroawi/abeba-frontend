@@ -20,8 +20,14 @@ import {
   Sun,
   Moon,
   Heart,
-  ChevronRight,
   LogOut,
+  ArrowRight,
+  Brain,
+  Flower2,
+  HeartHandshake,
+  ShieldCheck,
+  Sprout,
+  Ribbon,
 } from "lucide-react";
 import {
   api,
@@ -53,9 +59,35 @@ function ErrorNotice({ error }: { error: unknown }) {
   ) : null;
 }
 
+function BrandFlower({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`brand-flower ${className}`} viewBox="0 0 64 64" fill="currentColor" aria-hidden="true">
+      {[0, 72, 144, 216, 288].map((angle) => (
+        <ellipse key={angle} cx="32" cy="17" rx="9" ry="16" transform={`rotate(${angle} 32 32)`} />
+      ))}
+      <circle cx="32" cy="32" r="6" className="flower-center" />
+    </svg>
+  );
+}
+
+function LeafMotif({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`leaf-motif ${className}`} viewBox="0 0 140 180" fill="currentColor" aria-hidden="true">
+      <path d="M66 166c-8-19-3-32-16-36-12-4-22 11-34 4-14-9-8-25 5-28 13-3 27 10 30-2 4-13-26-11-31-25-6-17 9-26 20-17 10 9 12 22 19 17 10-7-15-23-10-39 4-14 21-14 25-2 5 14-9 30 3 33 11 2 7-26 18-32 14-8 28 6 18 19-10 12-31 16-26 28 5 11 19-9 31-6 16 4 15 23 0 28-13 5-24-8-31-1-10 10 16 13 20 26 5 17-16 23-23 10-9-16-14-10-13 3 1 12 4 17-5 25z" />
+    </svg>
+  );
+}
+
+function Brand({ compact = false }: { compact?: boolean }) {
+  return <Link className={`brand ${compact ? "brand-compact" : ""}`} to="/home" aria-label="Abeba home"><BrandFlower /><span>Abeba</span></Link>;
+}
+
 export default function App() {
   const location = useLocation();
   const mini = location.pathname.startsWith("/telegram");
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
   const query = useQuery({
     queryKey: ["session"],
     queryFn: () => api<Session>("channels/session/"),
@@ -95,119 +127,45 @@ export default function App() {
       .catch(() => {});
     return () => clean?.();
   }, [mini]);
+  const chatLayout = location.pathname === "/chat" || mini;
   return (
-    <div className={`app ${mini ? "mini" : ""}`}>
-      <aside className="sidebar">
-        <Link className="brand" to="/home">
-          <span>abeba</span>
-          <span className="brand-flower">✿</span>
-        </Link>
-        <p className="brand-caption">Your space to grow</p>
-        <nav aria-label="Main navigation">
-          <NavLink to="/home">
-            <Home size={20} />
-            Home
-          </NavLink>
-          <NavLink to="/learn">
-            <BookOpen size={20} />
-            Learn
-          </NavLink>
-          <NavLink to={mini ? "/telegram/chat" : "/chat"}>
-            <MessageCircle size={20} />
-            Ask Abeba
-          </NavLink>
-          <NavLink to="/settings">
-            <Settings size={20} />
-            Settings
-          </NavLink>
-        </nav>
-        <div className="sidebar-note">
-          <Heart size={20} />
-          <strong>A little care goes a long way.</strong>
-          <p>Learn at your pace. Ask without judgment.</p>
-        </div>
-        <small>Abeba · Web preview</small>
-      </aside>
-      <div className="workspace">
-        <header className="topbar">
-          <Link to="/home" className="mobile-brand">
-            abeba<span>✿</span>
-          </Link>
-          <span className="breadcrumb">
-            {mini
-              ? "Abeba inside Telegram"
-              : "A little knowledge. A lot of confidence."}
-          </span>
+    <div className={`app ${mini ? "mini" : ""} ${chatLayout ? "chat-layout" : ""}`}>
+      <a className="skip-link" href="#main">Skip to content</a>
+      <header className="site-header">
+        <div className="header-inner">
+          <Brand />
+          <nav className="desktop-nav" aria-label="Main navigation">
+            <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}>Home</NavLink>
+            <NavLink to="/learn">Explore & learn</NavLink>
+            <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={17} />Ask Abeba</NavLink>
+          </nav>
           <div className="header-actions">
-            <button
-              aria-label={dark ? "Use light theme" : "Use dark theme"}
-              className="icon-button"
-              onClick={() => setDark(!dark)}
-            >
-              {dark ? <Sun size={20} /> : <Moon size={20} />}
+            {mini && <span className="mini-label">Your Telegram chat</span>}
+            <button aria-label={dark ? "Use light theme" : "Use dark theme"} className="icon-button theme-toggle" onClick={() => setDark(!dark)}>
+              {dark ? <Sun size={19} /> : <Moon size={19} />}
             </button>
-            <span className="avatar">
-              {query.data?.user.username.slice(0, 1) || "A"}
-            </span>
+            <NavLink className="profile-link" to="/settings" aria-label="Settings"><Settings size={19} /></NavLink>
           </div>
-        </header>
-        <main id="main">
+        </div>
+      </header>
+      <div className="workspace">
+        <main id="main" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/learn" element={<LearnPage />} />
-            <Route
-              path="/chat"
-              element={
-                <ChatPage
-                  session={activeSession}
-                  sessionError={query.error}
-                  mini={false}
-                />
-              }
-            />
-            <Route
-              path="/telegram/chat"
-              element={
-                <ChatPage
-                  session={activeSession}
-                  sessionError={query.error}
-                  mini
-                />
-              }
-            />
-            <Route
-              path="/settings"
-              element={<SettingsPage session={activeSession} />}
-            />
-            <Route
-              path="*"
-              element={
-                <div className="page">
-                  <h1>Page not found</h1>
-                  <Link to="/home">Go home</Link>
-                </div>
-              }
-            />
+            <Route path="/chat" element={<ChatPage session={activeSession} sessionError={query.error} mini={false} />} />
+            <Route path="/telegram/chat" element={<ChatPage session={activeSession} sessionError={query.error} mini />} />
+            <Route path="/settings" element={<SettingsPage session={activeSession} />} />
+            <Route path="*" element={<div className="page not-found"><BrandFlower /><h1>A little off the path.</h1><p>Let’s find your way back to your space.</p><Link className="button" to="/home">Go home <ArrowRight size={18} /></Link></div>} />
           </Routes>
         </main>
+        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>A little knowledge.<br />A lot of room to grow.</p></div><nav aria-label="Footer navigation"><Link to="/learn">Explore & learn <ArrowUpRight size={16} /></Link><Link to="/chat">Ask Abeba <ArrowUpRight size={16} /></Link><Link to="/settings">Your preferences <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><BrandFlower /><span>Rooted in care.<br />Made for you.</span></div></div><div className="footer-bottom"><span>Abeba · Learn. Ask. Grow.</span><span>Educational information, with a little kindness.</span></div></footer>}
         <nav className="bottom-nav" aria-label="Mobile navigation">
-          <NavLink to="/home">
-            <Home size={20} />
-            Home
-          </NavLink>
-          <NavLink to="/learn">
-            <BookOpen size={20} />
-            Learn
-          </NavLink>
-          <NavLink to={mini ? "/telegram/chat" : "/chat"}>
-            <MessageCircle size={20} />
-            Chat
-          </NavLink>
-          <NavLink to="/settings">
-            <Settings size={20} />
-            Settings
-          </NavLink>
+          <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={21} /><span>Home</span></NavLink>
+          <NavLink to="/learn"><BookOpen size={21} /><span>Learn</span></NavLink>
+          <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={21} /><span>Ask Abeba</span></NavLink>
+          <NavLink to="/settings"><Settings size={21} /><span>Settings</span></NavLink>
         </nav>
       </div>
     </div>
@@ -231,118 +189,75 @@ function HomePage() {
     ? announcements.data
     : announcements.data?.results || [];
   return (
-    <div className="page">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">WELCOME TO YOUR SPACE</p>
-          <h1>Small steps. Brighter days.</h1>
-          <p>Understand yourself, find support, and grow with confidence.</p>
+    <div className="page home-page">
+      <section className="home-hero" aria-labelledby="hero-heading">
+        <div className="hero-copy">
+          <p className="eyebrow"><span className="tiny-flower">✳</span> YOUR SPACE TO ASK. LEARN. GROW.</p>
+          <h1 id="hero-heading">A little knowledge.<br />A lot of <em>confidence.</em></h1>
+          <p className="hero-description">Big feelings, changing bodies, everyday questions. Find information and a little support for the things that matter to you.</p>
+          <div className="hero-actions"><Link className="button" to="/chat">Let’s talk <ArrowUpRight size={20} /></Link><Link className="hero-secondary" to="/learn">Explore topics <ArrowRight size={18} /></Link></div>
+          <div className="hero-reassurance"><Heart size={16} /><span>Your questions. Your pace. Without judgment.</span></div>
         </div>
-        <span className="pill">
-          <span className="status-dot" />
-          Here for you
-        </span>
-      </div>
-      <section className="hero">
-        <div>
-          <span className="hero-tag">
-            <Sparkles size={16} />A safe space for your questions
-          </span>
-          <h2>
-            Big questions?
-            <br />
-            Let’s talk about them.
-          </h2>
-          <p>
-            From your wellbeing to your relationships, Abeba is here to help you
-            learn.
-          </p>
-          <Link className="button yellow" to="/chat">
-            Ask Abeba <ArrowUpRight size={19} />
-          </Link>
+        <div className="hero-visual">
+          <div className="hero-orbit" />
+          <LeafMotif className="hero-leaf" />
+          <BrandFlower className="hero-flower" />
+          <div className="hello-note"><span>Hi, I’m Abeba!</span><svg viewBox="0 0 60 35" fill="none" aria-hidden="true"><path d="M5 4c8 25 29 32 48 12m-14 1 16-5-3 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
+          <img className="hero-mascot" src="/brand/abeba-waving.webp" alt="Abeba smiles and waves hello" fetchPriority="high" />
+          <span className="hero-stamp"><BrandFlower />A little kindness<br />goes a long way.</span>
         </div>
-        <img src="/brand/abeba-mascot.png" alt="Abeba's friendly mascot" />
       </section>
-      <div className="section-title">
-        <h2>Make space for yourself</h2>
-        <span>A good place to start</span>
-      </div>
-      <div className="action-grid">
-        <Link className="action-card" to="/learn">
-          <span className="tile-icon">
-            <BookOpen />
-          </span>
-          <h3>Learn something new</h3>
-          <p>Clear information, at your own pace.</p>
-          <ChevronRight />
-        </Link>
-        <Link className="action-card peach" to="/chat">
-          <span className="tile-icon">
-            <MessageCircle />
-          </span>
-          <h3>Talk it through</h3>
-          <p>A question is always a good beginning.</p>
-          <ChevronRight />
-        </Link>
-      </div>
-      <div className="section-title">
-        <h2>Explore & understand</h2>
-        <Link to="/learn">
-          View all <ArrowUpRight size={16} />
-        </Link>
-      </div>
-      <ErrorNotice error={topics.error} />
-      {topics.isLoading && <p role="status">Loading topics…</p>}
-      <div className="topic-grid">
-        {topics.data?.results.slice(0, 3).map((t) => (
-          <TopicCard key={t.slug} topic={t} />
-        ))}
-      </div>
-      {news.length > 0 && (
-        <section className="announcements">
-          <h2>From the Abeba community</h2>
-          {news.slice(0, 3).map((n, i) => (
-            <article key={i}>
-              <h3>{n.title}</h3>
-              <p>{n.body}</p>
-            </article>
-          ))}
-        </section>
-      )}
+      <section className="care-principles" aria-label="Your space with Abeba">
+        <div><span className="principle-icon"><MessageCircle size={23} /></span><p><strong>A space to ask</strong><span>Start wherever you are.</span></p></div>
+        <div><span className="principle-icon"><BookOpen size={23} /></span><p><strong>Knowledge that helps</strong><span>Understand a little more.</span></p></div>
+        <div><span className="principle-icon"><Sprout size={24} /></span><p><strong>Room to grow</strong><span>One small step at a time.</span></p></div>
+      </section>
+      <section className="learning-section" aria-labelledby="discovery-heading">
+        <div className="section-title"><div><p className="eyebrow">A LITTLE CURIOSITY GOES A LONG WAY</p><h2 id="discovery-heading">Make room for discovery.</h2></div><Link className="section-link" to="/learn">Explore all topics <ArrowUpRight size={18} /></Link></div>
+        <ErrorNotice error={topics.error} />
+        {topics.isLoading && <div className="topic-grid" role="status" aria-label="Loading topics">{[0, 1, 2].map(i => <div className="topic-skeleton" key={i}><div /><span /><span /></div>)}</div>}
+        <div className="topic-grid">{topics.data?.results.slice(0, 3).map((t) => <TopicCard key={t.slug} topic={t} />)}</div>
+        {topics.data?.results.length === 0 && <p className="notice">New learning topics will appear here as they’re published.</p>}
+      </section>
+      <section className="question-banner" aria-labelledby="question-heading">
+        <div><p className="eyebrow">THERE’S NO PERFECT WAY TO ASK</p><h2 id="question-heading">Whatever’s on your mind,<br />let’s start there.</h2><p>Sometimes, a simple question opens a new door.</p><Link className="button yellow" to="/chat">Ask Abeba <ArrowUpRight size={19} /></Link></div>
+        <div className="question-links">{prompts.map((prompt, i) => <Link key={prompt} to={`/chat?question=${encodeURIComponent(prompt)}`}><span className="question-number">0{i + 1}</span><span>{prompt}</span><ArrowUpRight size={19} /></Link>)}</div>
+        <LeafMotif />
+      </section>
+      {news.length > 0 && <section className="announcements"><div className="section-title"><div><p className="eyebrow">STAY A LITTLE CONNECTED</p><h2>From the Abeba community</h2></div></div><div className="announcement-grid">{news.slice(0, 3).map((n, i) => <article key={i}><span className="eyebrow">COMMUNITY NOTES</span><h3>{n.title}</h3><p>{n.body}</p></article>)}</div></section>}
       <ErrorNotice error={announcements.error} />
     </div>
   );
 }
+
+function topicStyle(slug: string) {
+  if (/mental|wellbeing/.test(slug)) return { icon: Brain, label: "MIND & WELLBEING", tone: "mint" };
+  if (/menstru|cycle|maternal/.test(slug)) return { icon: Flower2, label: "YOUR BODY & YOU", tone: "rose" };
+  if (/gender|violence|safety/.test(slug)) return { icon: ShieldCheck, label: "SAFETY & SUPPORT", tone: "mint" };
+  if (/hiv|aids/.test(slug)) return { icon: Ribbon, label: "HEALTH & AWARENESS", tone: "yellow" };
+  if (/family|relationship|pregnan/.test(slug)) return { icon: HeartHandshake, label: "HEALTH & RELATIONSHIPS", tone: "yellow" };
+  return { icon: Sprout, label: "HEALTH & WELLBEING", tone: "mint" };
+}
 function TopicCard({ topic }: { topic: Topic }) {
+  const { icon: Icon, label, tone } = topicStyle(topic.slug);
   return (
-    <Link
-      className="topic-card"
-      to={`/learn?topic=${encodeURIComponent(topic.slug)}`}
-    >
-      <div className="topic-art">
-        <BookOpen size={34} />
-      </div>
-      <div>
-        <span className="eyebrow">HEALTH & WELLBEING</span>
-        <h3>{topic.title}</h3>
-        <p>
-          {topic.summary ||
-            topic.description ||
-            "Take a moment to understand more."}
-        </p>
-        <span className="read-link">
-          Read & learn <ArrowUpRight size={16} />
-        </span>
-      </div>
+    <Link className={`topic-card topic-${tone}`} to={`/learn?topic=${encodeURIComponent(topic.slug)}`}>
+      <div className="topic-art"><LeafMotif /><span className="topic-icon"><Icon size={52} strokeWidth={1.35} /></span><span className="topic-art-caption">A LITTLE MORE UNDERSTANDING</span></div>
+      <div className="topic-copy"><span className="eyebrow">{label}</span><h3>{topic.title}</h3><p>{topic.summary || topic.description || "Take a moment to understand more."}</p><span className="read-link">Take a closer look <ArrowUpRight size={17} /></span></div>
     </Link>
   );
 }
+
 function LearnPage() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState("en");
   const [page, setPage] = useState(1);
   const slug = params.get("topic");
+  const article = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (slug) article.current?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [slug]);
   const topics = useQuery({
     queryKey: ["topics", language, search, page],
     queryFn: () =>
@@ -359,10 +274,8 @@ function LearnPage() {
       ),
   });
   return (
-    <div className="page">
-      <p className="eyebrow">A LITTLE KNOWLEDGE GOES A LONG WAY</p>
-      <h1>Your learning space</h1>
-      <p>Trusted topics to help you understand your health and wellbeing.</p>
+    <div className="page learn-page">
+      <section className="learn-heading"><div><p className="eyebrow">A LITTLE KNOWLEDGE GOES A LONG WAY</p><h1>Curiosity looks good on you.</h1><p>Your learning space for health, wellbeing, and everything in between.</p></div><LeafMotif /><BrandFlower /></section>
       <div className="filters">
         <label>
           Search topics
@@ -393,7 +306,7 @@ function LearnPage() {
         </label>
       </div>
       {slug ? (
-        <article className="reading-card">
+        <article className="reading-card" ref={article}>
           <button className="text-button" onClick={() => setParams({})}>
             ← All topics
           </button>
@@ -516,7 +429,9 @@ function ChatPage({
     }
   }, [context.data, busy]);
   useEffect(() => {
+    if (!messages.length) return;
     end.current?.scrollIntoView({
+      block: "nearest",
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
         ? "auto"
         : "smooth",
@@ -635,6 +550,7 @@ function ChatPage({
       );
       setMessages(data.messages);
       setChatId(data.session_id);
+      if (!data.messages.length) window.scrollTo({ top: 0, behavior: "auto" });
       setUncertain(false);
       retryRequest.current = null;
       qc.setQueryData(["context", session?.user.id], data);
@@ -896,9 +812,8 @@ function SettingsPage({ session }: { session?: Session }) {
     }
   }
   return (
-    <div className="page">
-      <p className="eyebrow">MAKE THIS SPACE YOURS</p>
-      <h1>Settings</h1>
+    <div className="page settings-page">
+      <div className="settings-heading"><span className="settings-symbol"><Settings size={26} /></span><div><p className="eyebrow">MAKE THIS SPACE YOURS</p><h1>A little more you.</h1><p>Settings for a space that feels right.</p></div></div>
       <ErrorNotice error={error} />
       {session ? (
         <div className="settings-card">

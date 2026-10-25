@@ -37,6 +37,7 @@ function mount() {
 }
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
+  window.scrollTo = vi.fn();
   vi.clearAllMocks();
 });
 afterEach(cleanup);

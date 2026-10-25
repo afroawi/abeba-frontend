@@ -47,7 +47,7 @@ Use this project's `docker-compose.yml` with an already running backend:
 ```sh
 cp .env.example .env
 # Set ABEBA_API_UPSTREAM to the API origin reachable from Docker.
-docker-compose up -d --build --wait
+docker-compose up -d --build
 ```
 
 Open `http://127.0.0.1:18150`. `FRONTEND_PORT` changes the host port; Nginx keeps port 8080 inside the container. The standalone default upstream is `http://host.docker.internal:8000`; use port 8015 if your API uses the older backend Compose template's default. Use the shared stack or this standalone service, since they use the same frontend host port.

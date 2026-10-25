@@ -10,7 +10,7 @@ From this project directory, copy the template only if `.env` does not already e
 cp .env.production.example .env
 # ABEBA_API_UPSTREAM=https://dashboard.abebachat.com
 docker-compose -f docker-compose.prod.yml config --quiet
-docker-compose -f docker-compose.prod.yml up -d --build --wait
+docker-compose -f docker-compose.prod.yml up -d --build
 curl -f http://127.0.0.1:18150/healthz
 ```
 
@@ -67,6 +67,10 @@ docker-compose -f docker-compose.prod.yml logs --tail=100 frontend
 
 Open `/chat` in a browser and test consent and a message. Open the Mini App through Telegram to get signed launch data. Keep the configured AI model/provider key active on the existing backend.
 
-After pulling later changes, run `docker-compose -f docker-compose.prod.yml up -d --build --wait` again. The runtime has no application database or uploaded media volume to migrate. All account/chat data remains in the existing backend. The current application remains the initial feature slice described in README.md.
+After pulling later changes, run `docker-compose -f docker-compose.prod.yml up -d --build` again. The runtime has no application database or uploaded media volume to migrate. All account/chat data remains in the existing backend. The current application remains the initial feature slice described in README.md.
 
 References: [NGINX proxy headers/TLS](https://nginx.org/en/docs/http/ngx_http_proxy_module.html), [Django proxy SSL settings](https://docs.djangoproject.com/en/6.0/ref/settings/#secure-proxy-ssl-header).
+
+## Compose compatibility
+
+The standalone Compose files use format `3.7` and omit the newer top-level `name` field so they work with legacy `docker-compose` (tested with 1.29.2) and modern Compose. The project name defaults to the project directory; use the same directory/project name for later updates. The startup commands omit the newer `--wait` option. Check `docker-compose -f docker-compose.prod.yml ps` and the `/healthz` endpoint after startup. Modern Compose may print an informational warning that `version` is obsolete.
