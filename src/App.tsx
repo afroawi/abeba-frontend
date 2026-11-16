@@ -86,11 +86,7 @@ function ErrorNotice({ error }: { error: unknown }) {
 
 // Viewports trim transparent export padding while keeping the supplied artwork intact.
 function BrandFlower({ className = "" }: { className?: string }) {
-  return (
-    <svg className={`brand-flower ${className}`} viewBox="0 32 110 110" aria-hidden="true">
-      <image href="/brand/abeba-logo-white.png" width="420" height="178" />
-    </svg>
-  );
+  return <img className={`brand-flower ${className}`} src="/others/abeba-icon.png" alt="" aria-hidden="true" />;
 }
 
 function LeafMotif({ className = "" }: { className?: string }) {
@@ -104,9 +100,7 @@ function LeafMotif({ className = "" }: { className?: string }) {
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link className={`brand ${compact ? "brand-compact" : ""}`} to="/home" aria-label="Abeba home">
-      <svg className="brand-logo" viewBox="0 32 388 109" aria-hidden="true">
-        <image href="/brand/abeba-logo-white.png" width="420" height="178" />
-      </svg>
+      <img className="brand-logo" src="/others/abeba-logo.png" alt="" />
     </Link>
   );
 }
@@ -213,7 +207,7 @@ export default function App() {
             <Route path="*" element={<div className="page not-found"><BrandFlower /><h1>{t.notFoundTitle}</h1><p>{t.notFoundBody}</p><Link className="button" to="/home">{t.goHome} <ArrowRight size={18} /></Link></div>} />
           </Routes>
         </main>
-        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>{t.footerKnowledge}</p></div><nav aria-label="Footer navigation"><Link to="/learn">{t.learn} <ArrowUpRight size={16} /></Link><Link to="/chat">{t.ask} <ArrowUpRight size={16} /></Link><Link to="/settings">{t.footerPreferences} <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><BrandFlower /><span>{t.footerRooted}</span></div></div><div className="footer-bottom"><span>{t.footerTagline}</span><span>{t.footerNote}</span></div></footer>}
+        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>{t.footerKnowledge}</p></div><nav aria-label="Footer navigation"><Link to="/learn">{t.learn} <ArrowUpRight size={16} /></Link><Link to="/chat">{t.ask} <ArrowUpRight size={16} /></Link><Link to="/settings">{t.footerPreferences} <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><img src="/others/abeba-mascot.png" alt="" loading="lazy" /><span>{t.footerRooted}</span></div></div><div className="footer-bottom"><span>{t.footerTagline}</span><span>{t.footerNote}</span></div></footer>}
         <nav className="bottom-nav" aria-label="Mobile navigation">
           <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={21} /><span>{t.home}</span></NavLink>
           <NavLink to="/learn"><BookOpen size={21} /><span>{t.learn}</span></NavLink>
@@ -254,18 +248,33 @@ function HomePage() {
           <div className="hero-reassurance"><Heart size={16} /><span>{t.reassurance}</span></div>
         </div>
         <div className="hero-visual">
-          <div className="hero-orbit" />
-          <LeafMotif className="hero-leaf" />
-          <BrandFlower className="hero-flower" />
-          <div className="hello-note"><span>Hi, I’m Abeba!</span><svg viewBox="0 0 60 35" fill="none" aria-hidden="true"><path d="M5 4c8 25 29 32 48 12m-14 1 16-5-3 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
-          <img className="hero-mascot" src="/brand/abeba-waving.webp" alt="Abeba smiles and waves hello" fetchPriority="high" />
-          <span className="hero-stamp"><BrandFlower />A little kindness<br />goes a long way.</span>
+          <span className="hero-glow" aria-hidden="true" />
+          <img className="hero-mascot" src="/others/abeba-landing-hero.png" alt="Abeba smiles and holds up the Abeba app" fetchPriority="high" />
+          <div className="hero-float hero-float-top"><BrandFlower /><span>{t.meetAbeba}</span></div>
+          <div className="hero-float hero-float-bottom"><ShieldCheck size={19} /><span>{t.privateByDesign}</span></div>
         </div>
       </section>
       <section className="care-principles" aria-label="Your space with Abeba">
         <div><span className="principle-icon"><MessageCircle size={23} /></span><p><strong>{t.spaceAsk}</strong><span>{t.startWhere}</span></p></div>
         <div><span className="principle-icon"><BookOpen size={23} /></span><p><strong>{t.knowledgeHelps}</strong><span>{t.understandMore}</span></p></div>
         <div><span className="principle-icon"><Sprout size={24} /></span><p><strong>{t.roomGrow}</strong><span>{t.oneStep}</span></p></div>
+      </section>
+      <section className="ways-section" aria-labelledby="ways-heading">
+        <div className="section-title ways-title"><div><p className="eyebrow">{t.waysEyebrow}</p><h2 id="ways-heading">{t.waysTitle}</h2><p>{t.waysIntro}</p></div></div>
+        <div className="feature-bento">
+          <Link className="feature-card feature-chat" to="/chat">
+            <div><span className="feature-number">01</span><h3>{t.askCardTitle}</h3><p>{t.askCardBody}</p><span className="read-link">{t.letsTalk} <ArrowUpRight size={17} /></span></div>
+            <img src="/others/home-chat-avatar.png" alt="Abeba welcomes your question" />
+          </Link>
+          <Link className="feature-card feature-learn" to="/learn">
+            <div><span className="feature-number">02</span><h3>{t.learnCardTitle}</h3><p>{t.learnCardBody}</p><span className="read-link">{t.exploreTopics} <ArrowUpRight size={17} /></span></div>
+            <img src="/others/home-discover-mascot.png" alt="Abeba points toward learning topics" loading="lazy" />
+          </Link>
+          <Link className="feature-card feature-quiz" to="/learn">
+            <div><span className="feature-number">03</span><h3>{t.quizCardTitle}</h3><p>{t.quizCardBody}</p><span className="read-link">{t.exploreTopics} <ArrowUpRight size={17} /></span></div>
+            <img src="/others/home-quiz-avatar.png" alt="Abeba invites you to test your knowledge" loading="lazy" />
+          </Link>
+        </div>
       </section>
       <section className="learning-section" aria-labelledby="discovery-heading">
         <div className="section-title"><div><p className="eyebrow">{t.curiosity}</p><h2 id="discovery-heading">{t.discoveryTitle}</h2></div><Link className="section-link" to="/learn">{t.exploreAll} <ArrowUpRight size={18} /></Link></div>
@@ -278,6 +287,25 @@ function HomePage() {
         <div><p className="eyebrow">{t.noPerfectEyebrow}</p><h2 id="question-heading">{t.whateverMind}</h2><p>{t.simpleQuestion}</p><Link className="button yellow" to="/chat">{t.ask} <ArrowUpRight size={19} /></Link></div>
         <div className="question-links">{prompts[locale].map((prompt, i) => <Link key={prompt} to={`/chat?question=${encodeURIComponent(prompt)}`}><span className="question-number">0{i + 1}</span><span>{prompt}</span><ArrowUpRight size={19} /></Link>)}</div>
         <LeafMotif />
+      </section>
+      <section className="companion-section" aria-labelledby="companion-heading">
+        <div className="companion-copy">
+          <p className="eyebrow">{t.companionEyebrow}</p>
+          <h2 id="companion-heading">{t.companionTitle}</h2>
+          <p>{t.companionBody}</p>
+          <div className="companion-points">
+            <span><Sparkles size={18} />{t.languageFirst}</span>
+            <span><BookOpen size={18} />{t.topicFirst}</span>
+            <span><Heart size={18} />{t.alwaysHere}</span>
+          </div>
+          <Link className="button" to="/learn">{t.exploreAll} <ArrowUpRight size={18} /></Link>
+        </div>
+        <div className="companion-gallery" aria-label="Abeba app experience">
+          <figure className="gallery-language"><img src="/others/onboarding-language.png" alt="Abeba language welcome artwork" loading="lazy" /><figcaption>{t.languageFirst}</figcaption></figure>
+          <figure className="gallery-topics"><img src="/others/onboarding-topics.png" alt="Abeba surrounded by health and wellbeing topics" loading="lazy" /><figcaption>{t.topicFirst}</figcaption></figure>
+          <div className="gallery-welcome" aria-hidden="true"><img src="/others/onboarding-welcome.png" alt="" loading="lazy" /><img src="/others/onboarding-welcome-2.png" alt="" loading="lazy" /></div>
+          <figure className="gallery-wave"><img src="/others/abeba-waving.gif" alt="Abeba waves hello" loading="lazy" /><figcaption>{t.alwaysHere}</figcaption></figure>
+        </div>
       </section>
       {news.length > 0 && <section className="announcements"><div className="section-title"><div><p className="eyebrow">{t.communityEyebrow}</p><h2>{t.communityTitle}</h2></div></div><div className="announcement-grid">{news.slice(0, 3).map((n, i) => <article key={i}><span className="eyebrow">{t.communityNotes}</span><h3>{n.title}</h3><p>{n.body}</p></article>)}</div></section>}
       <ErrorNotice error={announcements.error} />
@@ -635,7 +663,7 @@ function ChatPage({
     <div className="chat-page">
       <div className="chat-heading">
         <div className="chat-title">
-          <img src="/brand/home-chat-avatar.png" alt="" />
+          <img src="/others/home-chat-avatar.png" alt="" />
           <div>
             <h1>{t.ask}</h1>
             <span>
@@ -688,7 +716,7 @@ function ChatPage({
       />
       {!session ? (
         <div className="chat-welcome">
-          <img src="/brand/abeba-welcome.png" alt="Abeba smiles and welcomes you" width="694" height="994" />
+          <img src="/others/abeba-paused.jpg" alt="Abeba smiles and welcomes you" width="360" height="280" />
           <h2>{t.questionsBelong}</h2>
           <p>
             {mini
@@ -719,7 +747,7 @@ function ChatPage({
             <p className="chat-date">{t.kindness}</p>
             {messages.length === 0 && (
               <div className="empty-chat">
-                <Sparkles size={30} />
+                <img className="empty-chat-mascot" src="/others/abeba-waving-2.gif" alt="Abeba waves hello" />
                 <h2>{t.whatsOnMind}</h2>
                 <p>{t.noPerfectWay}</p>
                 <div className="suggestions">
@@ -768,7 +796,7 @@ function ChatPage({
               </article>
             ))}
             {pendingMessage && <article className="message user pending-message"><span className="message-name">{t.you}</span><p>{pendingMessage}</p></article>}
-            {pendingMessage && <div className="thinking" role="status" aria-live="polite"><img src="/brand/home-chat-avatar.png" alt="" /><div><strong>{t.thinking}</strong><span>{t.thinkingDetail}</span><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
+            {pendingMessage && <div className="thinking" role="status" aria-live="polite"><img src="/others/abeba-talking.gif" alt="" /><div><strong>{t.thinking}</strong><span>{t.thinkingDetail}</span><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
             <div ref={end} />
           </div>
           {uncertain && (
