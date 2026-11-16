@@ -5,6 +5,8 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigate,
+  useParams,
   useSearchParams,
 } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,20 +43,43 @@ import {
 } from "./api";
 import { loadTelegram } from "./telegram";
 import Markdown from "react-markdown";
+import {
+  LocaleContext,
+  localeNames,
+  translations,
+  useI18n,
+  type Locale,
+} from "./i18n";
 
-const prompts = [
-  "How can I take care of my mental health?",
-  "Help me understand my cycle",
-  "What does a healthy relationship look like?",
-];
-const languages = [
+const prompts: Record<Locale, string[]> = {
+  en: [
+    "How can I take care of my mental health?",
+    "Help me understand my cycle",
+    "What does a healthy relationship look like?",
+  ],
+  am: [
+    "የአእምሮ ጤናዬን እንዴት ልንከባከብ?",
+    "የወር አበባ ዑደቴን እንድረዳ እርዱኝ",
+    "ጤናማ ግንኙነት ምን ይመስላል?",
+  ],
+};
+const chatLanguages = [
   { value: "en", label: "English" },
   { value: "am", label: "አማርኛ" },
 ];
+const languages = [
+  ...chatLanguages,
+  { value: "ti", label: "ትግርኛ · Tigrinya" },
+  { value: "om", label: "Oromoo" },
+  { value: "aa", label: "Afar" },
+  { value: "sid", label: "Sidama" },
+  { value: "so", label: "Soomaali" },
+];
 function ErrorNotice({ error }: { error: unknown }) {
+  const { t } = useI18n();
   return error ? (
     <p className="notice error" role="alert">
-      {error instanceof Error ? error.message : "Something went wrong."}
+      {error instanceof Error ? error.message : t.genericError}
     </p>
   ) : null;
 }
@@ -104,6 +129,22 @@ export default function App() {
     query.error instanceof ApiError && query.error.status === 401
       ? undefined
       : query.data;
+  const [locale, setLocale] = useState<Locale>(() => {
+    const saved = localStorage.getItem("abeba-locale");
+    if (saved === "en" || saved === "am") return saved;
+    return navigator.language.toLowerCase().startsWith("am") ? "am" : "en";
+  });
+  const t = translations[locale];
+  useEffect(() => {
+    const preferred = activeSession?.language;
+    if ((preferred === "en" || preferred === "am") && !localStorage.getItem("abeba-locale")) {
+      setLocale(preferred);
+    }
+  }, [activeSession?.language]);
+  useEffect(() => {
+    localStorage.setItem("abeba-locale", locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("abeba-theme", dark ? "dark" : "light");
@@ -133,22 +174,29 @@ export default function App() {
   }, [mini]);
   const chatLayout = location.pathname === "/chat" || mini;
   return (
+    <LocaleContext.Provider value={{ locale, setLocale }}>
     <div className={`app ${mini ? "mini" : ""} ${chatLayout ? "chat-layout" : ""}`}>
-      <a className="skip-link" href="#main">Skip to content</a>
+      <a className="skip-link" href="#main">{t.skip}</a>
       <header className="site-header">
         <div className="header-inner">
           <Brand />
           <nav className="desktop-nav" aria-label="Main navigation">
-            <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}>Home</NavLink>
-            <NavLink to="/learn">Explore & learn</NavLink>
-            <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={17} />Ask Abeba</NavLink>
+            <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}>{t.home}</NavLink>
+            <NavLink to="/learn">{t.learn}</NavLink>
+            <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={17} />{t.ask}</NavLink>
           </nav>
           <div className="header-actions">
-            {mini && <span className="mini-label">Your Telegram chat</span>}
-            <button aria-label={dark ? "Use light theme" : "Use dark theme"} className="icon-button theme-toggle" onClick={() => setDark(!dark)}>
+            {mini && <span className="mini-label">{t.telegramChat}</span>}
+            <label className="locale-picker">
+              <span className="sr-only">{t.interfaceLanguage}</span>
+              <select aria-label={t.interfaceLanguage} value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
+                {(Object.keys(localeNames) as Locale[]).map((code) => <option key={code} value={code}>{localeNames[code]}</option>)}
+              </select>
+            </label>
+            <button aria-label={dark ? t.lightTheme : t.darkTheme} className="icon-button theme-toggle" onClick={() => setDark(!dark)}>
               {dark ? <Sun size={19} /> : <Moon size={19} />}
             </button>
-            <NavLink className="profile-link" to="/settings" aria-label="Settings"><Settings size={19} /></NavLink>
+            <NavLink className="profile-link" to="/settings" aria-label={t.settings}><Settings size={19} /></NavLink>
           </div>
         </div>
       </header>
@@ -158,28 +206,31 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/learn" element={<LearnPage />} />
+            <Route path="/learn/:slug" element={<TopicPage />} />
             <Route path="/chat" element={<ChatPage session={activeSession} sessionError={query.error} mini={false} />} />
             <Route path="/telegram/chat" element={<ChatPage session={activeSession} sessionError={query.error} mini />} />
             <Route path="/settings" element={<SettingsPage session={activeSession} />} />
-            <Route path="*" element={<div className="page not-found"><BrandFlower /><h1>A little off the path.</h1><p>Let’s find your way back to your space.</p><Link className="button" to="/home">Go home <ArrowRight size={18} /></Link></div>} />
+            <Route path="*" element={<div className="page not-found"><BrandFlower /><h1>{t.notFoundTitle}</h1><p>{t.notFoundBody}</p><Link className="button" to="/home">{t.goHome} <ArrowRight size={18} /></Link></div>} />
           </Routes>
         </main>
-        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>A little knowledge.<br />A lot of room to grow.</p></div><nav aria-label="Footer navigation"><Link to="/learn">Explore & learn <ArrowUpRight size={16} /></Link><Link to="/chat">Ask Abeba <ArrowUpRight size={16} /></Link><Link to="/settings">Your preferences <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><BrandFlower /><span>Rooted in care.<br />Made for you.</span></div></div><div className="footer-bottom"><span>Abeba · Learn. Ask. Grow.</span><span>Educational information, with a little kindness.</span></div></footer>}
+        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>{t.footerKnowledge}</p></div><nav aria-label="Footer navigation"><Link to="/learn">{t.learn} <ArrowUpRight size={16} /></Link><Link to="/chat">{t.ask} <ArrowUpRight size={16} /></Link><Link to="/settings">{t.footerPreferences} <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><BrandFlower /><span>{t.footerRooted}</span></div></div><div className="footer-bottom"><span>{t.footerTagline}</span><span>{t.footerNote}</span></div></footer>}
         <nav className="bottom-nav" aria-label="Mobile navigation">
-          <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={21} /><span>Home</span></NavLink>
-          <NavLink to="/learn"><BookOpen size={21} /><span>Learn</span></NavLink>
-          <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={21} /><span>Ask Abeba</span></NavLink>
-          <NavLink to="/settings"><Settings size={21} /><span>Settings</span></NavLink>
+          <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={21} /><span>{t.home}</span></NavLink>
+          <NavLink to="/learn"><BookOpen size={21} /><span>{t.learn}</span></NavLink>
+          <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={21} /><span>{t.ask}</span></NavLink>
+          <NavLink to="/settings"><Settings size={21} /><span>{t.settings}</span></NavLink>
         </nav>
       </div>
     </div>
+    </LocaleContext.Provider>
   );
 }
 
 function HomePage() {
+  const { locale, t } = useI18n();
   const topics = useQuery({
-    queryKey: ["topics", "en", ""],
-    queryFn: () => api<{ results: Topic[] }>("learn/topics/?language=en"),
+    queryKey: ["topics", locale, ""],
+    queryFn: () => api<{ results: Topic[] }>(`learn/topics/?language=${locale}`),
   });
   const announcements = useQuery({
     queryKey: ["announcements"],
@@ -196,11 +247,11 @@ function HomePage() {
     <div className="page home-page">
       <section className="home-hero" aria-labelledby="hero-heading">
         <div className="hero-copy">
-          <p className="eyebrow"><BrandFlower className="tiny-flower" /> YOUR SPACE TO ASK. LEARN. GROW.</p>
-          <h1 id="hero-heading">A little knowledge.<br />A lot of <em>confidence.</em></h1>
-          <p className="hero-description">Big feelings, changing bodies, everyday questions. Find information and a little support for the things that matter to you.</p>
-          <div className="hero-actions"><Link className="button" to="/chat">Let’s talk <ArrowUpRight size={20} /></Link><Link className="hero-secondary" to="/learn">Explore topics <ArrowRight size={18} /></Link></div>
-          <div className="hero-reassurance"><Heart size={16} /><span>Your questions. Your pace. Without judgment.</span></div>
+          <p className="eyebrow"><BrandFlower className="tiny-flower" /> {t.homeEyebrow}</p>
+          <h1 id="hero-heading">{t.homeTitle}</h1>
+          <p className="hero-description">{t.homeDescription}</p>
+          <div className="hero-actions"><Link className="button" to="/chat">{t.letsTalk} <ArrowUpRight size={20} /></Link><Link className="hero-secondary" to="/learn">{t.exploreTopics} <ArrowRight size={18} /></Link></div>
+          <div className="hero-reassurance"><Heart size={16} /><span>{t.reassurance}</span></div>
         </div>
         <div className="hero-visual">
           <div className="hero-orbit" />
@@ -212,23 +263,23 @@ function HomePage() {
         </div>
       </section>
       <section className="care-principles" aria-label="Your space with Abeba">
-        <div><span className="principle-icon"><MessageCircle size={23} /></span><p><strong>A space to ask</strong><span>Start wherever you are.</span></p></div>
-        <div><span className="principle-icon"><BookOpen size={23} /></span><p><strong>Knowledge that helps</strong><span>Understand a little more.</span></p></div>
-        <div><span className="principle-icon"><Sprout size={24} /></span><p><strong>Room to grow</strong><span>One small step at a time.</span></p></div>
+        <div><span className="principle-icon"><MessageCircle size={23} /></span><p><strong>{t.spaceAsk}</strong><span>{t.startWhere}</span></p></div>
+        <div><span className="principle-icon"><BookOpen size={23} /></span><p><strong>{t.knowledgeHelps}</strong><span>{t.understandMore}</span></p></div>
+        <div><span className="principle-icon"><Sprout size={24} /></span><p><strong>{t.roomGrow}</strong><span>{t.oneStep}</span></p></div>
       </section>
       <section className="learning-section" aria-labelledby="discovery-heading">
-        <div className="section-title"><div><p className="eyebrow">A LITTLE CURIOSITY GOES A LONG WAY</p><h2 id="discovery-heading">Make room for discovery.</h2></div><Link className="section-link" to="/learn">Explore all topics <ArrowUpRight size={18} /></Link></div>
+        <div className="section-title"><div><p className="eyebrow">{t.curiosity}</p><h2 id="discovery-heading">{t.discoveryTitle}</h2></div><Link className="section-link" to="/learn">{t.exploreAll} <ArrowUpRight size={18} /></Link></div>
         <ErrorNotice error={topics.error} />
         {topics.isLoading && <div className="topic-grid" role="status" aria-label="Loading topics">{[0, 1, 2].map(i => <div className="topic-skeleton" key={i}><div /><span /><span /></div>)}</div>}
-        <div className="topic-grid">{topics.data?.results.slice(0, 3).map((t) => <TopicCard key={t.slug} topic={t} />)}</div>
-        {topics.data?.results.length === 0 && <p className="notice">New learning topics will appear here as they’re published.</p>}
+        <div className="topic-grid">{topics.data?.results.slice(0, 3).map((topic) => <TopicCard key={topic.slug} topic={topic} language={locale} />)}</div>
+        {topics.data?.results.length === 0 && <p className="notice">{t.noPublished}</p>}
       </section>
       <section className="question-banner" aria-labelledby="question-heading">
-        <div><p className="eyebrow">THERE’S NO PERFECT WAY TO ASK</p><h2 id="question-heading">Whatever’s on your mind,<br />let’s start there.</h2><p>Sometimes, a simple question opens a new door.</p><Link className="button yellow" to="/chat">Ask Abeba <ArrowUpRight size={19} /></Link></div>
-        <div className="question-links">{prompts.map((prompt, i) => <Link key={prompt} to={`/chat?question=${encodeURIComponent(prompt)}`}><span className="question-number">0{i + 1}</span><span>{prompt}</span><ArrowUpRight size={19} /></Link>)}</div>
+        <div><p className="eyebrow">{t.noPerfectEyebrow}</p><h2 id="question-heading">{t.whateverMind}</h2><p>{t.simpleQuestion}</p><Link className="button yellow" to="/chat">{t.ask} <ArrowUpRight size={19} /></Link></div>
+        <div className="question-links">{prompts[locale].map((prompt, i) => <Link key={prompt} to={`/chat?question=${encodeURIComponent(prompt)}`}><span className="question-number">0{i + 1}</span><span>{prompt}</span><ArrowUpRight size={19} /></Link>)}</div>
         <LeafMotif />
       </section>
-      {news.length > 0 && <section className="announcements"><div className="section-title"><div><p className="eyebrow">STAY A LITTLE CONNECTED</p><h2>From the Abeba community</h2></div></div><div className="announcement-grid">{news.slice(0, 3).map((n, i) => <article key={i}><span className="eyebrow">COMMUNITY NOTES</span><h3>{n.title}</h3><p>{n.body}</p></article>)}</div></section>}
+      {news.length > 0 && <section className="announcements"><div className="section-title"><div><p className="eyebrow">{t.communityEyebrow}</p><h2>{t.communityTitle}</h2></div></div><div className="announcement-grid">{news.slice(0, 3).map((n, i) => <article key={i}><span className="eyebrow">{t.communityNotes}</span><h3>{n.title}</h3><p>{n.body}</p></article>)}</div></section>}
       <ErrorNotice error={announcements.error} />
     </div>
   );
@@ -242,26 +293,32 @@ function topicStyle(slug: string) {
   if (/family|relationship|pregnan/.test(slug)) return { icon: HeartHandshake, label: "HEALTH & RELATIONSHIPS", tone: "yellow" };
   return { icon: Sprout, label: "HEALTH & WELLBEING", tone: "mint" };
 }
-function TopicCard({ topic }: { topic: Topic }) {
+function TopicCard({ topic, language }: { topic: Topic; language: string }) {
+  const { locale, t } = useI18n();
   const { icon: Icon, label, tone } = topicStyle(topic.slug);
   return (
-    <Link className={`topic-card topic-${tone}`} to={`/learn?topic=${encodeURIComponent(topic.slug)}`}>
-      <div className="topic-art"><LeafMotif /><span className="topic-icon"><Icon size={52} strokeWidth={1.35} /></span><span className="topic-art-caption">A LITTLE MORE UNDERSTANDING</span></div>
-      <div className="topic-copy"><span className="eyebrow">{label}</span><h3>{topic.title}</h3><p>{topic.summary || topic.description || "Take a moment to understand more."}</p><span className="read-link">Take a closer look <ArrowUpRight size={17} /></span></div>
+    <Link className={`topic-card topic-${tone}`} to={`/learn/${encodeURIComponent(topic.slug)}?language=${encodeURIComponent(language)}`}>
+      <div className="topic-art"><LeafMotif /><span className="topic-icon"><Icon size={52} strokeWidth={1.35} /></span><span className="topic-art-caption">{t.understanding}</span></div>
+      <div className="topic-copy"><span className="eyebrow">{locale === "en" ? label : t.understanding}</span><h3>{topic.title}</h3><p>{topic.summary || topic.description || t.learnIntro}</p><span className="read-link">{t.closerLook} <ArrowUpRight size={17} /></span></div>
     </Link>
   );
 }
 
 function LearnPage() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { locale, t } = useI18n();
   const [search, setSearch] = useState("");
-  const [language, setLanguage] = useState("en");
   const [page, setPage] = useState(1);
-  const slug = params.get("topic");
-  const article = useRef<HTMLElement>(null);
+  const language = languages.some((item) => item.value === params.get("language"))
+    ? params.get("language")!
+    : locale;
   useEffect(() => {
-    if (slug) article.current?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [slug]);
+    const legacySlug = params.get("topic");
+    if (legacySlug) {
+      navigate(`/learn/${encodeURIComponent(legacySlug)}?language=${encodeURIComponent(language)}`, { replace: true });
+    }
+  }, [language, navigate, params]);
   const topics = useQuery({
     queryKey: ["topics", language, search, page],
     queryFn: () =>
@@ -269,37 +326,30 @@ function LearnPage() {
         `learn/topics/?language=${language}&search=${encodeURIComponent(search)}&page=${page}`,
       ),
   });
-  const detail = useQuery({
-    queryKey: ["topic", slug, language],
-    enabled: !!slug,
-    queryFn: () =>
-      api<Topic>(
-        `learn/topics/${encodeURIComponent(slug!)}/?language=${language}`,
-      ),
-  });
+  function changeLanguage(nextLanguage: string) {
+    setParams(nextLanguage === locale ? {} : { language: nextLanguage });
+    setPage(1);
+  }
   return (
     <div className="page learn-page">
-      <section className="learn-heading"><div><p className="eyebrow">A LITTLE KNOWLEDGE GOES A LONG WAY</p><h1>Curiosity looks good on you.</h1><p>Your learning space for health, wellbeing, and everything in between.</p></div><LeafMotif /><BrandFlower /></section>
+      <section className="learn-heading"><div><p className="eyebrow">{t.learnEyebrow}</p><h1>{t.learnTitle}</h1><p>{t.learnIntro}</p></div><LeafMotif /><BrandFlower /></section>
       <div className="filters">
         <label>
-          Search topics
+          {t.searchTopics}
           <input
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="What would you like to learn?"
+            placeholder={t.searchPlaceholder}
           />
         </label>
         <label>
-          Content language
+          {t.contentLanguage}
           <select
             value={language}
-            onChange={(e) => {
-              setLanguage(e.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => changeLanguage(event.target.value)}
           >
             {languages.map((l) => (
               <option key={l.value} value={l.value}>
@@ -309,69 +359,71 @@ function LearnPage() {
           </select>
         </label>
       </div>
-      {slug ? (
-        <article className="reading-card" ref={article}>
-          <button className="text-button" onClick={() => setParams({})}>
-            ← All topics
-          </button>
-          <ErrorNotice error={detail.error} />
-          {detail.isLoading && <p role="status">Loading article…</p>}
-          {detail.data && (
-            <>
-              <h2>{detail.data.title}</h2>
-              <Markdown>
-                {detail.data.content_markdown ||
-                  detail.data.body ||
-                  detail.data.markdown ||
-                  detail.data.description ||
-                  detail.data.summary}
-              </Markdown>
-              {detail.data.sections?.map((s, i) => (
-                <section key={i}>
-                  <h3>{s.title || s.heading}</h3>
-                  <p className="body-text">{s.body || s.content}</p>
-                  {s.bullets?.map((b, j) => (
-                    <p key={j}>• {b}</p>
-                  ))}
-                </section>
-              ))}
-              <Link
-                className="button"
-                to={`/chat?question=${encodeURIComponent(`Help me understand ${detail.data.title}`)}`}
-              >
-                Ask Abeba about this
-              </Link>
-            </>
-          )}
+      <ErrorNotice error={topics.error} />
+      {topics.isLoading && <div className="topic-grid" role="status" aria-label={t.loadingTopics}>{[0, 1, 2].map((item) => <div className="topic-skeleton" key={item}><div /><span /><span /></div>)}</div>}
+      <div className="topic-grid">
+        {topics.data?.results.map((topic) => (
+          <TopicCard key={topic.slug} topic={topic} language={language} />
+        ))}
+      </div>
+      {topics.data?.results.length === 0 && <p className="notice">{t.noTopics}</p>}
+      <div className="pagination">
+        <button disabled={!topics.data?.previous} onClick={() => setPage(page - 1)}>{t.previous}</button>
+        <span>{t.page} {page}</span>
+        <button disabled={!topics.data?.next} onClick={() => setPage(page + 1)}>{t.next}</button>
+      </div>
+    </div>
+  );
+}
+
+function TopicPage() {
+  const { slug = "" } = useParams();
+  const [params, setParams] = useSearchParams();
+  const { locale, t } = useI18n();
+  const requestedLanguage = params.get("language");
+  const language = languages.some((item) => item.value === requestedLanguage)
+    ? requestedLanguage!
+    : locale;
+  const detail = useQuery({
+    queryKey: ["topic", slug, language],
+    enabled: Boolean(slug),
+    queryFn: () => api<Topic>(`learn/topics/${encodeURIComponent(slug)}/?language=${encodeURIComponent(language)}`),
+  });
+  const topic = detail.data;
+  const markdown = topic?.content_markdown || topic?.body || topic?.markdown || topic?.description || topic?.summary || "";
+  return (
+    <div className="page topic-page">
+      <div className="topic-toolbar">
+        <Link className="text-button" to={`/learn?language=${encodeURIComponent(language)}`}>← {t.allTopics}</Link>
+        <label>
+          <span>{t.contentLanguage}</span>
+          <select value={language} onChange={(event) => setParams({ language: event.target.value })}>
+            {languages.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </label>
+      </div>
+      <ErrorNotice error={detail.error} />
+      {detail.isLoading && <article className="reading-card article-loading" role="status"><div className="loading-line wide" /><div className="loading-line" /><div className="loading-line" /></article>}
+      {topic && (
+        <article className="reading-card">
+          {safeHttps(topic.image_url || "") && <img className="topic-hero-image" src={topic.image_url} alt="" />}
+          <p className="eyebrow">{languages.find((item) => item.value === (topic.language || language))?.label || topic.language}</p>
+          <h1>{topic.title}</h1>
+          {topic.summary && topic.summary !== markdown && <p className="topic-summary">{topic.summary}</p>}
+          {markdown ? <Markdown>{markdown}</Markdown> : !topic.sections?.length ? <p>{t.topicUnavailable}</p> : null}
+          {topic.sections?.map((section, index) => (
+            <section key={`${section.title || section.heading || "section"}-${index}`}>
+              {(section.title || section.heading) && <h2>{section.title || section.heading}</h2>}
+              {(section.body || section.content) && <Markdown>{section.body || section.content}</Markdown>}
+              {section.bullets?.length ? <ul>{section.bullets.map((bullet, bulletIndex) => <li key={bulletIndex}>{bullet}</li>)}</ul> : null}
+            </section>
+          ))}
+          {topic.audios?.some((audio) => audio.audio_url && safeHttps(audio.audio_url)) && <section className="topic-resources"><h2>{t.listen}</h2>{topic.audios?.filter((audio) => audio.audio_url && safeHttps(audio.audio_url)).map((audio) => <a key={audio.id} href={audio.audio_url!} target="_blank" rel="noopener noreferrer">{audio.title || t.listen} <ArrowUpRight size={16} /></a>)}</section>}
+          <div className="topic-actions">
+            <Link className="button" to={`/chat?question=${encodeURIComponent(`${t.askAbout}: ${topic.title}`)}`}>{t.askAbout} <MessageCircle size={17} /></Link>
+            {topic.source_url && safeHttps(topic.source_url) && <a className="outline-button" href={topic.source_url} target="_blank" rel="noopener noreferrer">{t.source} <ArrowUpRight size={16} /></a>}
+          </div>
         </article>
-      ) : (
-        <>
-          <ErrorNotice error={topics.error} />
-          {topics.isLoading && <p role="status">Loading topics…</p>}
-          <div className="topic-grid">
-            {topics.data?.results.map((t) => (
-              <TopicCard key={t.slug} topic={t} />
-            ))}
-          </div>
-          {topics.data?.results.length === 0 && (
-            <p>No matching topics. Try another search.</p>
-          )}
-          <div className="pagination">
-            <button
-              disabled={!topics.data?.previous}
-              onClick={() => setPage(page - 1)}
-            >
-              Previous
-            </button>
-            <span>Page {page}</span>
-            <button
-              disabled={!topics.data?.next}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </button>
-          </div>
-        </>
       )}
     </div>
   );
@@ -386,6 +438,7 @@ function ChatPage({
   sessionError: unknown;
   mini: boolean;
 }) {
+  const { locale, t } = useI18n();
   const [verifiedSession, setVerifiedSession] = useState<Session>();
   const session = mini
     ? verifiedSession && incomingSession?.user.id === verifiedSession.user.id
@@ -400,12 +453,14 @@ function ChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatId, setChatId] = useState<number | null>(null);
   const [uncertain, setUncertain] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const retryRequest = useRef<{
     request_key: string;
     message: string;
     session_id?: number;
   } | null>(null);
   const end = useRef<HTMLDivElement>(null);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   const history = useQuery({
     queryKey: ["history", session?.user.id],
     enabled: !!session,
@@ -441,6 +496,12 @@ function ChatPage({
         : "smooth",
     });
   }, [messages]);
+  useEffect(() => {
+    const input = composerInput.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+  }, [draft]);
   const handoff = useRef(false);
   useEffect(() => {
     const selected = params.get("session");
@@ -516,6 +577,7 @@ function ChatPage({
             ...(chatId ? { session_id: chatId } : {}),
           };
     retryRequest.current = body;
+    setPendingMessage(body.message);
     setBusy(true);
     setError(undefined);
     try {
@@ -540,6 +602,7 @@ function ChatPage({
         }
       }
     } finally {
+      setPendingMessage(null);
       setBusy(false);
     }
   }
@@ -574,9 +637,9 @@ function ChatPage({
         <div className="chat-title">
           <img src="/brand/home-chat-avatar.png" alt="" />
           <div>
-            <h1>Ask Abeba</h1>
+            <h1>{t.ask}</h1>
             <span>
-              <span className="status-dot" />A space to ask, learn & grow
+              <span className="status-dot" />{t.chatStatus}
             </span>
           </div>
         </div>
@@ -586,13 +649,13 @@ function ChatPage({
           onClick={() => selectChat()}
         >
           <Plus size={18} />
-          New chat
+          {t.newChat}
         </button>
       </div>
       {session && (
         <div className="conversation-tools">
           <label className="sr-only" htmlFor="history">
-            Conversation
+            {t.conversation}
           </label>
           <select
             id="history"
@@ -601,7 +664,7 @@ function ChatPage({
             onChange={(e) => selectChat(Number(e.target.value))}
           >
             <option value="" disabled>
-              Choose a conversation
+              {t.chooseConversation}
             </option>
             {history.data?.results.map((h) => (
               <option key={h.id} value={h.id}>
@@ -611,7 +674,7 @@ function ChatPage({
           </select>
           <span>
             {session.language === "am" ? "አማርኛ" : "English"} · shared chat
-            allowance
+            {t.sharedAllowance}
           </span>
         </div>
       )}
@@ -626,48 +689,41 @@ function ChatPage({
       {!session ? (
         <div className="chat-welcome">
           <img src="/brand/abeba-welcome.png" alt="Abeba smiles and welcomes you" width="694" height="994" />
-          <h2>Your questions belong here.</h2>
+          <h2>{t.questionsBelong}</h2>
           <p>
             {mini
-              ? "Connect securely with your Telegram account to continue your conversation."
-              : "Start a private browser session. Your account is tied to this browser until account linking is available."}
+              ? t.telegramConnect
+              : t.browserConnect}
           </p>
           <button className="button" disabled={busy} onClick={connect}>
             {busy
-              ? "Connecting…"
+              ? t.connecting
               : mini
-                ? "Connect with Telegram"
-                : "Start chatting"}
+                ? t.connectTelegram
+                : t.startChatting}
           </button>
         </div>
       ) : !session.ai_consent ? (
         <div className="consent-card">
           <Sparkles />
-          <h2>Before we chat</h2>
-          <p>
-            Your messages and recent conversation context will be processed by
-            Abeba’s configured AI provider to prepare an answer. Please avoid
-            sharing identifying details. You can withdraw consent in Settings.
-          </p>
-          <p>
-            Abeba offers educational information. For personal health decisions,
-            consult a qualified professional.
-          </p>
+          <h2>{t.beforeChat}</h2>
+          <p>{t.consentOne}</p>
+          <p>{t.consentTwo}</p>
           <button className="button" disabled={busy} onClick={consent}>
-            I agree — continue
+            {t.agree}
           </button>
         </div>
       ) : (
         <>
           <div className="message-area" aria-label="Conversation">
-            <p className="chat-date">A little kindness, a little clarity.</p>
+            <p className="chat-date">{t.kindness}</p>
             {messages.length === 0 && (
               <div className="empty-chat">
                 <Sparkles size={30} />
-                <h2>What’s on your mind?</h2>
-                <p>There’s no perfect way to ask. Start wherever you are.</p>
+                <h2>{t.whatsOnMind}</h2>
+                <p>{t.noPerfectWay}</p>
                 <div className="suggestions">
-                  {prompts.map((p) => (
+                  {prompts[locale].map((p) => (
                     <button key={p} onClick={() => setDraft(p)}>
                       {p}
                       <ArrowUpRight size={16} />
@@ -679,7 +735,7 @@ function ChatPage({
             {messages.map((m) => (
               <article className={`message ${m.role}`} key={m.id}>
                 <span className="message-name">
-                  {m.role === "assistant" ? "✿ Abeba" : "You"}
+                  {m.role === "assistant" ? "✿ Abeba" : t.you}
                 </span>
                 <Markdown>{m.text}</Markdown>
                 {m.structured?.examples?.map((e, i) => (
@@ -701,33 +757,32 @@ function ChatPage({
                   <button
                     className="followup"
                     key={i}
-                    onClick={() => setDraft(f)}
+                    onClick={() => {
+                      setDraft(f);
+                      requestAnimationFrame(() => composerInput.current?.focus());
+                    }}
                   >
                     {f}
                   </button>
                 ))}
               </article>
             ))}
-            {busy && (
-              <p className="thinking" role="status">
-                Abeba is working on your request…
-              </p>
-            )}
+            {pendingMessage && <article className="message user pending-message"><span className="message-name">{t.you}</span><p>{pendingMessage}</p></article>}
+            {pendingMessage && <div className="thinking" role="status" aria-live="polite"><img src="/brand/home-chat-avatar.png" alt="" /><div><strong>{t.thinking}</strong><span>{t.thinkingDetail}</span><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
             <div ref={end} />
           </div>
           {uncertain && (
             <div className="notice">
-              The request may still be processing. Refresh history or retry the
-              same request before sending again.
+              {t.requestUncertain}
               <button
                 onClick={() =>
                   void qc.invalidateQueries({ queryKey: ["context"] })
                 }
               >
-                Refresh history
+                {t.refreshHistory}
               </button>
               <button disabled={busy} onClick={() => send(true)}>
-                Retry same request
+                {t.retry}
               </button>
               <button
                 disabled={busy}
@@ -736,7 +791,7 @@ function ChatPage({
                   retryRequest.current = null;
                 }}
               >
-                Dismiss
+                {t.dismiss}
               </button>
             </div>
           )}
@@ -748,11 +803,12 @@ function ChatPage({
             }}
           >
             <label className="sr-only" htmlFor="message">
-              Your message
+              {t.yourMessage}
             </label>
             <textarea
               id="message"
-              placeholder="Ask whatever’s on your mind…"
+              ref={composerInput}
+              placeholder={t.messagePlaceholder}
               value={draft}
               maxLength={6000}
               onChange={(e) => setDraft(e.target.value)}
@@ -768,18 +824,17 @@ function ChatPage({
               }}
             />
             <button
-              aria-label="Send message"
+              aria-label={t.send}
               disabled={busy || uncertain || !draft.trim()}
             >
               <ArrowUp size={22} />
             </button>
           </form>
+          <span className={`character-count ${draft.length > 5400 ? "near-limit" : ""}`}>{draft.length ? `${draft.length.toLocaleString()} / 6,000` : ""}</span>
           <p className="chat-footnote">
-            AI can make mistakes. Abeba is here to help you learn, not to
-            diagnose.
+            {t.aiNote}
             <br />
-            Showing the latest 100 messages. Voice and account linking are
-            coming next.
+            {t.historyNote}
           </p>
         </>
       )}
@@ -788,6 +843,7 @@ function ChatPage({
 }
 
 function SettingsPage({ session }: { session?: Session }) {
+  const { t, setLocale } = useI18n();
   const qc = useQueryClient();
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
@@ -797,6 +853,7 @@ function SettingsPage({ session }: { session?: Session }) {
     try {
       const next = await api<Session>("channels/preferences/", "PATCH", body);
       qc.setQueryData(["session"], next);
+      if (next.language === "en" || next.language === "am") setLocale(next.language);
     } catch (e) {
       setError(e);
     } finally {
@@ -817,42 +874,42 @@ function SettingsPage({ session }: { session?: Session }) {
   }
   return (
     <div className="page settings-page">
-      <div className="settings-heading"><span className="settings-symbol"><Settings size={26} /></span><div><p className="eyebrow">MAKE THIS SPACE YOURS</p><h1>A little more you.</h1><p>Settings for a space that feels right.</p></div></div>
+      <div className="settings-heading"><span className="settings-symbol"><Settings size={26} /></span><div><p className="eyebrow">{t.makeYours}</p><h1>{t.settingsTitle}</h1><p>{t.settingsIntro}</p></div></div>
       <ErrorNotice error={error} />
       {session ? (
         <div className="settings-card">
           <h2>{session.user.username}</h2>
           <label>
-            Chat response language
+            {t.chatLanguage}
             <select
               disabled={busy}
               value={session.language}
               onChange={(e) => update({ language: e.target.value })}
             >
-              {languages.map((l) => (
+              {chatLanguages.map((l) => (
                 <option key={l.value} value={l.value}>
                   {l.label}
                 </option>
               ))}
             </select>
           </label>
-          <p>AI consent: {session.ai_consent ? "accepted" : "not accepted"}</p>
+          <p>{t.consentStatus}: {session.ai_consent ? t.accepted : t.notAccepted}</p>
           {session.ai_consent && (
             <button
               className="outline-button"
               disabled={busy}
               onClick={() => update({ ai_consent: false })}
             >
-              Withdraw AI consent
+              {t.withdraw}
             </button>
           )}
           <p>
-            Remaining allowance:{" "}
+            {t.remaining}:{" "}
             {session.quota.tokens_remaining.toLocaleString()} tokens
           </p>
           <button className="outline-button" disabled={busy} onClick={logout}>
             <LogOut size={18} />
-            End this session
+            {t.endSession}
           </button>
           <p className="muted">
             Ending an unlinked browser session removes your access to that
@@ -862,9 +919,9 @@ function SettingsPage({ session }: { session?: Session }) {
         </div>
       ) : (
         <div className="settings-card">
-          <p>Start a chat session to manage your preferences.</p>
+          <p>{t.startManage}</p>
           <Link className="button" to="/chat">
-            Open chat
+            {t.openChat}
           </Link>
         </div>
       )}

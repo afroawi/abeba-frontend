@@ -25,20 +25,52 @@ const session: Session = {
   quota: { tokens_remaining: 1000 },
   bot_enabled: false,
 };
-function mount() {
+function mount(path = "/chat") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={["/chat"]}>
+      <MemoryRouter initialEntries={[path]}>
         <App />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 beforeEach(() => {
+  localStorage.clear();
   Element.prototype.scrollIntoView = vi.fn();
   window.scrollTo = vi.fn();
   vi.clearAllMocks();
+});
+
+describe("localization and learn pages", () => {
+  it("persists the interface locale while requesting the selected content language", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "channels/session/") throw new ApiError(401, "Not connected");
+      if (path.startsWith("learn/topics/?language=am")) return { results: [], next: null, previous: null } as never;
+      throw new Error(`Unexpected ${path}`);
+    });
+    mount("/learn?language=am");
+    fireEvent.change(await screen.findByLabelText("Interface language"), {
+      target: { value: "am" },
+    });
+    expect(await screen.findByText("የማወቅ ጉጉት ያምርብዎታል።")).toBeInTheDocument();
+    expect(localStorage.getItem("abeba-locale")).toBe("am");
+    expect(api).toHaveBeenCalledWith(expect.stringContaining("learn/topics/?language=am"));
+  });
+
+  it("renders a topic at its dedicated shareable route", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "channels/session/") throw new ApiError(401, "Not connected");
+      if (path === "learn/topics/mental-health/?language=en") {
+        return { slug: "mental-health", title: "Mental health", content_markdown: "## Take care\nSmall steps help." } as never;
+      }
+      throw new Error(`Unexpected ${path}`);
+    });
+    mount("/learn/mental-health?language=en");
+    expect(await screen.findByRole("heading", { name: "Mental health" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Take care" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ask Abeba about this/ })).toHaveAttribute("href", expect.stringContaining("/chat?question="));
+  });
 });
 afterEach(cleanup);
 describe("chat permissions and retries", () => {
