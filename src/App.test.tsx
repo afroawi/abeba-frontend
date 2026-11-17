@@ -43,6 +43,19 @@ beforeEach(() => {
 });
 
 describe("localization and learn pages", () => {
+  it("links to the verified Android app and Telegram bot", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "channels/session/") throw new ApiError(401, "Not connected");
+      if (path === "learn/topics/?language=en") return { results: [] } as never;
+      if (path === "announcements/") return { results: [] } as never;
+      throw new Error(`Unexpected ${path}`);
+    });
+    mount("/home");
+    await screen.findByRole("heading", { name: "A little knowledge. A lot of confidence." });
+    expect(screen.getAllByRole("link", { name: /Download for Android/ }).some((link) => link.getAttribute("href") === "https://play.google.com/store/apps/details?id=com.abeba.abebamobileapp")).toBe(true);
+    expect(screen.getAllByRole("link", { name: /Open Telegram bot/ }).some((link) => link.getAttribute("href") === "https://t.me/Abebachatbot")).toBe(true);
+  });
+
   it("persists the interface locale while requesting the selected content language", async () => {
     vi.mocked(api).mockImplementation(async (path) => {
       if (path === "channels/session/") throw new ApiError(401, "Not connected");

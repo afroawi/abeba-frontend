@@ -30,6 +30,9 @@ import {
   ShieldCheck,
   Sprout,
   Ribbon,
+  Download,
+  Send,
+  Smartphone,
 } from "lucide-react";
 import {
   api,
@@ -63,6 +66,8 @@ const prompts: Record<Locale, string[]> = {
     "ጤናማ ግንኙነት ምን ይመስላል?",
   ],
 };
+const TELEGRAM_BOT_URL = "https://t.me/Abebachatbot";
+const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.abeba.abebamobileapp";
 const chatLanguages = [
   { value: "en", label: "English" },
   { value: "am", label: "አማርኛ" },
@@ -178,9 +183,11 @@ export default function App() {
             <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}>{t.home}</NavLink>
             <NavLink to="/learn">{t.learn}</NavLink>
             <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={17} />{t.ask}</NavLink>
+            <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer"><Send size={16} />{t.telegram}</a>
           </nav>
           <div className="header-actions">
             {mini && <span className="mini-label">{t.telegramChat}</span>}
+            {!mini && <a className="header-download" href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer"><Download size={15} />{t.getApp}</a>}
             <label className="locale-picker">
               <span className="sr-only">{t.interfaceLanguage}</span>
               <select aria-label={t.interfaceLanguage} value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
@@ -207,7 +214,7 @@ export default function App() {
             <Route path="*" element={<div className="page not-found"><BrandFlower /><h1>{t.notFoundTitle}</h1><p>{t.notFoundBody}</p><Link className="button" to="/home">{t.goHome} <ArrowRight size={18} /></Link></div>} />
           </Routes>
         </main>
-        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>{t.footerKnowledge}</p></div><nav aria-label="Footer navigation"><Link to="/learn">{t.learn} <ArrowUpRight size={16} /></Link><Link to="/chat">{t.ask} <ArrowUpRight size={16} /></Link><Link to="/settings">{t.footerPreferences} <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><img src="/others/abeba-mascot.png" alt="" loading="lazy" /><span>{t.footerRooted}</span></div></div><div className="footer-bottom"><span>{t.footerTagline}</span><span>{t.footerNote}</span></div></footer>}
+        {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>{t.footerKnowledge}</p></div><nav aria-label="Footer navigation"><Link to="/learn">{t.learn} <ArrowUpRight size={16} /></Link><Link to="/chat">{t.ask} <ArrowUpRight size={16} /></Link><a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer">{t.openTelegram} <ArrowUpRight size={16} /></a><a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer">{t.googlePlay} <ArrowUpRight size={16} /></a><Link to="/settings">{t.footerPreferences} <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><img src="/others/abeba-mascot.png" alt="" loading="lazy" /><span>{t.footerRooted}</span></div></div><div className="footer-bottom"><span>{t.footerTagline}</span><span>{t.footerNote}</span></div></footer>}
         <nav className="bottom-nav" aria-label="Mobile navigation">
           <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={21} /><span>{t.home}</span></NavLink>
           <NavLink to="/learn"><BookOpen size={21} /><span>{t.learn}</span></NavLink>
@@ -285,7 +292,7 @@ function HomePage() {
       </section>
       <section className="question-banner" aria-labelledby="question-heading">
         <div><p className="eyebrow">{t.noPerfectEyebrow}</p><h2 id="question-heading">{t.whateverMind}</h2><p>{t.simpleQuestion}</p><Link className="button yellow" to="/chat">{t.ask} <ArrowUpRight size={19} /></Link></div>
-        <div className="question-links">{prompts[locale].map((prompt, i) => <Link key={prompt} to={`/chat?question=${encodeURIComponent(prompt)}`}><span className="question-number">0{i + 1}</span><span>{prompt}</span><ArrowUpRight size={19} /></Link>)}</div>
+        <div className="question-panel"><div className="question-panel-heading"><img src="/others/home-chat-avatar.png" alt="" /><span><strong>{t.ask}</strong><small>{t.chatStatus}</small></span><i aria-hidden="true" /></div><div className="question-links">{prompts[locale].map((prompt, i) => <Link key={prompt} to={`/chat?question=${encodeURIComponent(prompt)}`}><span className="question-number">0{i + 1}</span><span>{prompt}</span><ArrowUpRight size={19} /></Link>)}</div></div>
         <LeafMotif />
       </section>
       <section className="companion-section" aria-labelledby="companion-heading">
@@ -306,6 +313,10 @@ function HomePage() {
           <div className="gallery-welcome" aria-hidden="true"><img src="/others/onboarding-welcome.png" alt="" loading="lazy" /><img src="/others/onboarding-welcome-2.png" alt="" loading="lazy" /></div>
           <figure className="gallery-wave"><img src="/others/abeba-waving.gif" alt="Abeba waves hello" loading="lazy" /><figcaption>{t.alwaysHere}</figcaption></figure>
         </div>
+      </section>
+      <section className="download-section" aria-labelledby="download-heading">
+        <div className="download-visual"><span className="download-orbit" aria-hidden="true" /><img src="/others/abeba-waving-2.gif" alt="Abeba welcomes you to the app and Telegram bot" loading="lazy" /><BrandFlower /></div>
+        <div className="download-copy"><p className="eyebrow">{t.downloadEyebrow}</p><h2 id="download-heading">{t.downloadTitle}</h2><p>{t.downloadBody}</p><div className="download-actions"><a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer"><span className="download-icon"><Smartphone size={22} /></span><span><small>{t.androidLabel}</small><strong>{t.googlePlay}</strong><em>{t.androidDetail}</em></span><ArrowUpRight size={19} /></a><a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer"><span className="download-icon telegram-icon"><Send size={21} /></span><span><small>{t.telegramLabel}</small><strong>{t.openTelegram}</strong><em>{t.telegramDetail}</em></span><ArrowUpRight size={19} /></a></div></div>
       </section>
       {news.length > 0 && <section className="announcements"><div className="section-title"><div><p className="eyebrow">{t.communityEyebrow}</p><h2>{t.communityTitle}</h2></div></div><div className="announcement-grid">{news.slice(0, 3).map((n, i) => <article key={i}><span className="eyebrow">{t.communityNotes}</span><h3>{n.title}</h3><p>{n.body}</p></article>)}</div></section>}
       <ErrorNotice error={announcements.error} />
@@ -360,7 +371,7 @@ function LearnPage() {
   }
   return (
     <div className="page learn-page">
-      <section className="learn-heading"><div><p className="eyebrow">{t.learnEyebrow}</p><h1>{t.learnTitle}</h1><p>{t.learnIntro}</p></div><LeafMotif /><BrandFlower /></section>
+      <section className="learn-heading"><div><p className="eyebrow">{t.learnEyebrow}</p><h1>{t.learnTitle}</h1><p>{t.learnIntro}</p></div><img className="learn-heading-mascot" src="/others/home-discover-mascot.png" alt="Abeba points toward learning topics" /><LeafMotif /><BrandFlower /></section>
       <div className="filters">
         <label>
           {t.searchTopics}
