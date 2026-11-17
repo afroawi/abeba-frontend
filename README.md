@@ -28,12 +28,18 @@ Deploy the frontend to HTTPS with a same-origin `/api/v1/` reverse proxy. Set th
 
 The bot and Mini App share an account and active chat pointer. `?session=123` selects an existing owned conversation after authentication; it grants no access by itself. Bot replies appear in Telegram and Mini App replies appear in the web interface. Both are persisted in the common history. History polling runs every five seconds while idle.
 
+## Voice chat
+
+The web and Telegram Mini App chat composer can record up to two minutes of audio and post it to `POST /api/v1/channels/chat/transcriptions/`. The transcript is added to the composer for review; it is never sent as a chat message automatically. Saved assistant messages use `POST /api/v1/channels/chat/audio/` for private, on-demand read-aloud playback, including multi-part playback for long answers. Both routes require the current channel session and AI consent.
+
+Set `OPENAI_API_KEY` on the backend and enable the admin-managed Voice (TTS) configuration. No AI key, recording, or generated response audio is stored in the frontend or exposed through a public media URL.
+
 ## Initial scope and limitations
 
 - Content pages use the real public API, with explicit loading/errors and no fabricated fallback records. Chat uses the new `/channels/` endpoints and the existing configured AI provider.
 - Chat is synchronous for this pilot. The same request key can retrieve a completed result after a network failure; failed/pending requests are not automatically regenerated. Inspect history before explicitly sending a new request.
 - The initial history window is 20 recent conversations and 100 messages per selected conversation. Structured answer fields are preserved for newly generated channel messages.
-- Learn articles render Markdown with raw HTML disabled. Voice, bookmarks/Explore, quiz, calendar, map, notifications, full UI translation, profile onboarding, account linking/recovery/deletion and production job recovery are later milestones.
+- Learn articles render Markdown with raw HTML disabled. Bookmarks/Explore, quiz, calendar, map, notifications, full UI translation, profile onboarding, account linking/recovery/deletion and production job recovery are later milestones.
 - Ending an unlinked browser session loses access to that account. Telegram identity reconnects through a fresh verified launch. Do not advertise anonymous recovery or cross-channel mobile linking yet.
 - Private responses must bypass any proxy/CDN caches. Serve SPA deep links through `index.html` but keep `/api` and `/media` routed correctly. Restrict production Django hosts/origins, set secure cookies and enforce HTTPS.
 - The development server runs only on loopback. A public Telegram Mini App needs a separately configured HTTPS origin; no tunnel/deployment is created by this scaffold.

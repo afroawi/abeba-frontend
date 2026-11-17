@@ -40,11 +40,19 @@ import {
   Menu,
   X,
   AlertTriangle,
+  Mic,
+  Square,
+  Volume2,
+  Pause,
+  Play,
+  LoaderCircle,
 } from "lucide-react";
 import {
   api,
   ApiError,
+  getMessageAudio,
   safeHttps,
+  transcribeAudio,
   type Session,
   type Topic,
   type Conversation,
@@ -503,6 +511,20 @@ function ChatPage({
   const [historySearch, setHistorySearch] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [voiceState, setVoiceState] = useState<"idle" | "listening" | "transcribing">("idle");
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const [voiceNotice, setVoiceNotice] = useState("");
+  const [playback, setPlayback] = useState<{
+    messageId: number;
+    status: "loading" | "playing" | "paused";
+  } | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const recordingStream = useRef<MediaStream | null>(null);
+  const recordingChunks = useRef<Blob[]>([]);
+  const recordingStartedAt = useRef(0);
+  const audioPlayer = useRef<HTMLAudioElement | null>(null);
+  const audioUrl = useRef<string | null>(null);
+  const audioRequest = useRef<AbortController | null>(null);
   const retryRequest = useRef<{
     request_key: string;
     message: string;
@@ -551,6 +573,22 @@ function ChatPage({
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
   }, [draft]);
+  useEffect(() => {
+    if (voiceState !== "listening") return;
+    const timer = window.setInterval(() => {
+      const elapsed = Math.max(0, Math.round((Date.now() - recordingStartedAt.current) / 1000));
+      setVoiceSeconds(elapsed);
+      if (elapsed >= 120 && recorder.current?.state === "recording") recorder.current.stop();
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [voiceState]);
+  useEffect(() => () => {
+    if (recorder.current?.state === "recording") recorder.current.stop();
+    recordingStream.current?.getTracks().forEach((track) => track.stop());
+    audioRequest.current?.abort();
+    audioPlayer.current?.pause();
+    if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
+  }, []);
   const handoff = useRef(false);
   useEffect(() => {
     const selected = params.get("session");
@@ -581,7 +619,9 @@ function ChatPage({
           init_data: app.initData,
         });
       } else next = await api("channels/auth/web/", "POST", {});
-      qc.clear();
+      qc.removeQueries({
+        predicate: (query) => query.queryKey[0] !== "session",
+      });
       qc.setQueryData(["session"], next);
       if (mini) setVerifiedSession(next);
       setMessages([]);
@@ -656,6 +696,7 @@ function ChatPage({
     }
   }
   async function selectChat(id?: number) {
+    clearPlayback();
     setBusy(true);
     setError(undefined);
     try {
@@ -676,6 +717,132 @@ function ChatPage({
     } finally {
       setBusy(false);
     }
+  }
+  function clearPlayback() {
+    audioRequest.current?.abort();
+    audioRequest.current = null;
+    audioPlayer.current?.pause();
+    audioPlayer.current = null;
+    if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
+    audioUrl.current = null;
+    setPlayback(null);
+  }
+  async function playAudioPart(messageId: number, part = 1) {
+    audioRequest.current?.abort();
+    const request = new AbortController();
+    audioRequest.current = request;
+    setPlayback({ messageId, status: "loading" });
+    try {
+      const result = await getMessageAudio(messageId, part, request.signal);
+      if (request.signal.aborted) return;
+      if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
+      const url = URL.createObjectURL(result.blob);
+      audioUrl.current = url;
+      const player = new Audio(url);
+      audioPlayer.current = player;
+      player.onended = () => {
+        if (result.part < result.parts) void playAudioPart(messageId, result.part + 1);
+        else clearPlayback();
+      };
+      player.onerror = () => {
+        clearPlayback();
+        setError(new Error(t.audioFailed));
+      };
+      setPlayback({ messageId, status: "playing" });
+      try {
+        await player.play();
+      } catch (playError) {
+        if ((playError as DOMException)?.name === "NotAllowedError") {
+          setPlayback({ messageId, status: "paused" });
+        } else throw playError;
+      }
+    } catch (audioError) {
+      if ((audioError as DOMException)?.name === "AbortError") return;
+      clearPlayback();
+      setError(audioError);
+    }
+  }
+  async function togglePlayback(messageId: number) {
+    if (playback?.messageId === messageId && audioPlayer.current) {
+      if (playback.status === "playing") {
+        audioPlayer.current.pause();
+        setPlayback({ messageId, status: "paused" });
+      } else if (playback.status === "paused") {
+        try {
+          await audioPlayer.current.play();
+          setPlayback({ messageId, status: "playing" });
+        } catch {
+          setError(new Error(t.audioFailed));
+        }
+      }
+      return;
+    }
+    clearPlayback();
+    await playAudioPart(messageId);
+  }
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError(new Error(t.voiceUnavailable));
+      return;
+    }
+    setError(undefined);
+    setVoiceNotice("");
+    clearPlayback();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      recordingStream.current = stream;
+      recordingChunks.current = [];
+      const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"]
+        .find((type) => MediaRecorder.isTypeSupported(type));
+      const nextRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorder.current = nextRecorder;
+      nextRecorder.ondataavailable = (event) => {
+        if (event.data.size) recordingChunks.current.push(event.data);
+      };
+      nextRecorder.onerror = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setVoiceState("idle");
+        setError(new Error(t.recordingFailed));
+      };
+      nextRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStream.current = null;
+        const duration = Math.max(.1, (Date.now() - recordingStartedAt.current) / 1000);
+        const recorded = new Blob(recordingChunks.current, { type: nextRecorder.mimeType || "audio/webm" });
+        if (!recorded.size) {
+          setVoiceState("idle");
+          setError(new Error(t.recordingFailed));
+          return;
+        }
+        setVoiceState("transcribing");
+        try {
+          const result = await transcribeAudio(recorded, session?.language || locale, duration);
+          if (!result.text.trim()) throw new Error(t.noSpeechDetected);
+          setDraft((current) => `${current}${current.trim() ? " " : ""}${result.text.trim()}`);
+          setVoiceNotice(t.transcriptReady);
+          requestAnimationFrame(() => composerInput.current?.focus());
+        } catch (transcriptionError) {
+          setError(transcriptionError);
+        } finally {
+          setVoiceState("idle");
+          setVoiceSeconds(0);
+        }
+      };
+      recordingStartedAt.current = Date.now();
+      setVoiceSeconds(0);
+      setVoiceState("listening");
+      nextRecorder.start(250);
+    } catch (recordingError) {
+      recordingStream.current?.getTracks().forEach((track) => track.stop());
+      recordingStream.current = null;
+      setVoiceState("idle");
+      setError(recordingError instanceof DOMException && recordingError.name === "NotAllowedError" ? new Error(t.microphoneDenied) : recordingError);
+    }
+  }
+  function stopRecording() {
+    if (recorder.current?.state === "recording") recorder.current.stop();
   }
   const unavailable =
     sessionError &&
@@ -725,14 +892,14 @@ function ChatPage({
               <div className="message-stream">
                 <p className="chat-date">{t.kindness}</p>
                 {messages.length === 0 && <div className="empty-chat"><img className="empty-chat-mascot" src="/others/abeba-waving-2.gif" alt="Abeba waves hello" /><h2>{t.whatsOnMind}</h2><p>{t.noPerfectWay}</p><div className="suggestions">{prompts[locale].map((prompt) => <button key={prompt} onClick={() => { setDraft(prompt); requestAnimationFrame(() => composerInput.current?.focus()); }}>{prompt}<ArrowUpRight size={16} /></button>)}</div></div>}
-                {messages.map((message) => <article className={`message ${message.role}`} key={message.id}><span className="message-name">{message.role === "assistant" ? "✿ Abeba" : t.you}</span><Markdown>{message.text}</Markdown>{message.structured?.examples?.map((example, index) => <blockquote key={index}>{example}</blockquote>)}{message.structured?.links?.filter((link) => safeHttps(link.url)).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer">{link.title} ↗</a>)}{message.structured?.suggested_followups?.map((followup, index) => <button className="followup" key={index} onClick={() => { setDraft(followup); requestAnimationFrame(() => composerInput.current?.focus()); }}>{followup}</button>)}</article>)}
+                {messages.map((message) => <article className={`message ${message.role}`} key={message.id}><span className="message-name">{message.role === "assistant" ? "✿ Abeba" : t.you}</span><Markdown>{message.text}</Markdown>{message.structured?.examples?.map((example, index) => <blockquote key={index}>{example}</blockquote>)}{message.structured?.links?.filter((link) => safeHttps(link.url)).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer">{link.title} ↗</a>)}{message.structured?.suggested_followups?.map((followup, index) => <button className="followup" key={index} onClick={() => { setDraft(followup); requestAnimationFrame(() => composerInput.current?.focus()); }}>{followup}</button>)}{message.role === "assistant" && <div className="message-actions"><button className={`listen-response ${playback?.messageId === message.id ? playback.status : ""}`} title={t.aiVoiceDisclosure} disabled={voiceState !== "idle" || (playback?.status === "loading" && playback.messageId === message.id)} onClick={() => void togglePlayback(message.id)}>{playback?.messageId === message.id && playback.status === "loading" ? <LoaderCircle className="spin" size={15} /> : playback?.messageId === message.id && playback.status === "playing" ? <Pause size={15} /> : playback?.messageId === message.id && playback.status === "paused" ? <Play size={15} /> : <Volume2 size={15} />}<span>{playback?.messageId === message.id ? playback.status === "loading" ? t.preparingAudio : playback.status === "playing" ? t.pauseAudio : t.resumeAudio : t.listenResponse}</span></button></div>}</article>)}
                 {pendingMessage && <article className="message user pending-message"><span className="message-name">{t.you}</span><p>{pendingMessage}</p></article>}
                 {pendingMessage && <div className="thinking" role="status" aria-live="polite"><img src="/others/abeba-talking.gif" alt="" /><div><strong>{t.thinking}</strong><span>{t.thinkingDetail}</span><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
                 <div ref={end} />
               </div>
             </div>
             {uncertain && <div className="notice chat-retry-notice">{t.requestUncertain}<button onClick={() => void qc.invalidateQueries({ queryKey: ["context"] })}>{t.refreshHistory}</button><button disabled={busy} onClick={() => send(true)}>{t.retry}</button><button disabled={busy} onClick={() => { setUncertain(false); retryRequest.current = null; }}>{t.dismiss}</button></div>}
-            <div className="composer-shell"><form className="composer" onSubmit={(event) => { event.preventDefault(); void send(); }}><label className="sr-only" htmlFor="message">{t.yourMessage}</label><textarea id="message" ref={composerInput} placeholder={t.messagePlaceholder} value={draft} maxLength={6000} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><button aria-label={t.send} disabled={busy || uncertain || !draft.trim()}><ArrowUp size={22} /></button></form><span className={`character-count ${draft.length > 5400 ? "near-limit" : ""}`}>{draft.length ? `${draft.length.toLocaleString()} / 6,000` : ""}</span></div>
+            <div className="composer-shell"><form className={`composer ${voiceState === "listening" ? "is-listening" : ""}`} onSubmit={(event) => { event.preventDefault(); void send(); }}><button type="button" className={`voice-button ${voiceState}`} aria-label={voiceState === "listening" ? t.stopListening : voiceState === "transcribing" ? t.transcribing : t.startListening} title={t.voiceHelp} disabled={busy || uncertain || voiceState === "transcribing"} onClick={voiceState === "listening" ? stopRecording : () => void startRecording()}>{voiceState === "listening" ? <Square size={16} fill="currentColor" /> : voiceState === "transcribing" ? <LoaderCircle className="spin" size={20} /> : <Mic size={20} />}</button><label className="sr-only" htmlFor="message">{t.yourMessage}</label><textarea id="message" ref={composerInput} placeholder={voiceState === "listening" ? t.listening : voiceState === "transcribing" ? t.transcribing : t.messagePlaceholder} value={draft} maxLength={6000} onChange={(event) => { setDraft(event.target.value); setVoiceNotice(""); }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><button className="send-button" aria-label={t.send} disabled={busy || uncertain || voiceState !== "idle" || !draft.trim()}><ArrowUp size={22} /></button></form><div className={`voice-status ${voiceState}`} role="status" aria-live="polite">{voiceState === "listening" ? <><span className="recording-dot" />{t.listening} · {Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, "0")}</> : voiceState === "transcribing" ? <><LoaderCircle className="spin" size={12} />{t.transcribing}</> : voiceNotice || t.voiceHelp}</div><span className={`character-count ${draft.length > 5400 ? "near-limit" : ""}`}>{draft.length ? `${draft.length.toLocaleString()} / 6,000` : ""}</span></div>
           </>
         )}
       </section>

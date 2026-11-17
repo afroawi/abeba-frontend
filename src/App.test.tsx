@@ -11,10 +11,18 @@ import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
-import { api, ApiError, type Session } from "./api";
+import {
+  api,
+  ApiError,
+  getMessageAudio,
+  transcribeAudio,
+  type Session,
+} from "./api";
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   api: vi.fn(),
+  getMessageAudio: vi.fn(),
+  transcribeAudio: vi.fn(),
 }));
 const session: Session = {
   user: { id: 7, username: "Test" },
@@ -85,8 +93,78 @@ describe("localization and learn pages", () => {
     expect(screen.getByRole("link", { name: /Ask Abeba about this/ })).toHaveAttribute("href", expect.stringContaining("/chat?question="));
   });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 describe("chat permissions and retries", () => {
+  it("transcribes a recording into the composer and can prepare spoken replies", async () => {
+    class FakeMediaRecorder {
+      static isTypeSupported = () => true;
+      state: RecordingState = "inactive";
+      mimeType = "audio/webm";
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      start() { this.state = "recording"; }
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({ data: new Blob(["voice"], { type: this.mimeType }) });
+        this.onstop?.();
+      }
+    }
+    const tracks = [{ stop: vi.fn() }];
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => ({ getTracks: () => tracks })) },
+    });
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+    vi.stubGlobal("Audio", class {
+      onended: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      paused = true;
+      constructor(public src: string) {}
+      async play() { this.paused = false; }
+      pause() { this.paused = true; }
+    });
+    URL.createObjectURL = vi.fn(() => "blob:answer");
+    URL.revokeObjectURL = vi.fn();
+    vi.mocked(transcribeAudio).mockResolvedValue({
+      text: "How can I sleep better?",
+      confidence: .9,
+      language: "en",
+      duration_seconds: 1,
+    });
+    vi.mocked(getMessageAudio).mockResolvedValue({
+      blob: new Blob(["ID3"]),
+      part: 1,
+      parts: 1,
+    });
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "channels/session/") return { ...session, ai_consent: true } as never;
+      if (path === "channels/chat/context/")
+        return {
+          session_id: 3,
+          messages: [{ id: 21, role: "assistant", text: "A calm routine can help." }],
+        } as never;
+      if (path === "channels/chat/history/") return { results: [] } as never;
+      throw new Error(`Unexpected ${path}`);
+    });
+
+    mount();
+    expect(await screen.findByText("A calm routine can help.")).toBeInTheDocument();
+    fireEvent.click(await screen.findByLabelText("Start voice recording"));
+    fireEvent.click(await screen.findByLabelText("Stop recording"));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Your message")).toHaveValue("How can I sleep better?"),
+    );
+    expect(screen.getByText(/Transcript added/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Listen to response" }));
+    await waitFor(() => expect(getMessageAudio).toHaveBeenCalledWith(21, 1, expect.any(AbortSignal)));
+    expect(await screen.findByRole("button", { name: "Pause audio" })).toBeInTheDocument();
+  });
+
   it("shows searchable, collapsible history without the site navigation", async () => {
     vi.mocked(api).mockImplementation(async (path) => {
       if (path === "channels/session/")
