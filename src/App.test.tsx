@@ -87,6 +87,44 @@ describe("localization and learn pages", () => {
 });
 afterEach(cleanup);
 describe("chat permissions and retries", () => {
+  it("shows searchable, collapsible history without the site navigation", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "channels/session/")
+        return { ...session, ai_consent: true } as never;
+      if (path === "channels/chat/context/")
+        return { session_id: 2, messages: [] } as never;
+      if (path === "channels/chat/history/")
+        return {
+          results: [
+            { id: 1, preview: "Understanding my cycle" },
+            { id: 2, preview: "Healthy sleep habits" },
+          ],
+        } as never;
+      throw new Error(`Unexpected ${path}`);
+    });
+    mount();
+    expect(
+      await screen.findByRole("complementary", { name: "Chat history" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Main navigation" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "AI can make mistakes. Abeba is here to help you learn, not to diagnose.",
+      ),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Understanding my cycle")).toBeInTheDocument();
+    expect(screen.getByText("Healthy sleep habits")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search conversations"), {
+      target: { value: "cycle" },
+    });
+    expect(screen.getByText("Understanding my cycle")).toBeInTheDocument();
+    expect(screen.queryByText("Healthy sleep habits")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Collapse history panel"));
+    expect(screen.getByLabelText("Expand history panel")).toBeInTheDocument();
+  });
+
   it("connects an anonymous browser before asking for consent", async () => {
     let connected = false;
     vi.mocked(api).mockImplementation(async (path) => {

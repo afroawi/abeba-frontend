@@ -33,6 +33,13 @@ import {
   Download,
   Send,
   Smartphone,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  ChevronLeft,
+  Menu,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import {
   api,
@@ -176,7 +183,7 @@ export default function App() {
     <LocaleContext.Provider value={{ locale, setLocale }}>
     <div className={`app ${mini ? "mini" : ""} ${chatLayout ? "chat-layout" : ""}`}>
       <a className="skip-link" href="#main">{t.skip}</a>
-      <header className="site-header">
+      {!chatLayout && <header className="site-header">
         <div className="header-inner">
           <Brand />
           <nav className="desktop-nav" aria-label="Main navigation">
@@ -200,7 +207,7 @@ export default function App() {
             <NavLink className="profile-link" to="/settings" aria-label={t.settings}><Settings size={19} /></NavLink>
           </div>
         </div>
-      </header>
+      </header>}
       <div className="workspace">
         <main id="main" tabIndex={-1}>
           <Routes>
@@ -215,12 +222,12 @@ export default function App() {
           </Routes>
         </main>
         {!chatLayout && <footer className="site-footer"><div className="footer-inner"><div><Brand /><p>{t.footerKnowledge}</p></div><nav aria-label="Footer navigation"><Link to="/learn">{t.learn} <ArrowUpRight size={16} /></Link><Link to="/chat">{t.ask} <ArrowUpRight size={16} /></Link><a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer">{t.openTelegram} <ArrowUpRight size={16} /></a><a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer">{t.googlePlay} <ArrowUpRight size={16} /></a><Link to="/settings">{t.footerPreferences} <ArrowUpRight size={16} /></Link></nav><div className="footer-signoff"><img src="/others/abeba-mascot.png" alt="" loading="lazy" /><span>{t.footerRooted}</span></div></div><div className="footer-bottom"><span>{t.footerTagline}</span><span>{t.footerNote}</span></div></footer>}
-        <nav className="bottom-nav" aria-label="Mobile navigation">
+        {!chatLayout && <nav className="bottom-nav" aria-label="Mobile navigation">
           <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={21} /><span>{t.home}</span></NavLink>
           <NavLink to="/learn"><BookOpen size={21} /><span>{t.learn}</span></NavLink>
           <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={21} /><span>{t.ask}</span></NavLink>
           <NavLink to="/settings"><Settings size={21} /><span>{t.settings}</span></NavLink>
-        </nav>
+        </nav>}
       </div>
     </div>
     </LocaleContext.Provider>
@@ -493,6 +500,9 @@ function ChatPage({
   const [chatId, setChatId] = useState<number | null>(null);
   const [uncertain, setUncertain] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [historySearch, setHistorySearch] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const retryRequest = useRef<{
     request_key: string;
     message: string;
@@ -534,7 +544,7 @@ function ChatPage({
         ? "auto"
         : "smooth",
     });
-  }, [messages]);
+  }, [messages, pendingMessage]);
   useEffect(() => {
     const input = composerInput.current;
     if (!input) return;
@@ -670,213 +680,62 @@ function ChatPage({
   const unavailable =
     sessionError &&
     !(sessionError instanceof ApiError && sessionError.status === 401);
+  const filteredHistory = (history.data?.results || []).filter((item) =>
+    item.preview.toLocaleLowerCase().includes(historySearch.trim().toLocaleLowerCase()),
+  );
   return (
-    <div className="chat-page">
-      <div className="chat-heading">
-        <div className="chat-title">
-          <img src="/others/home-chat-avatar.png" alt="" />
-          <div>
-            <h1>{t.ask}</h1>
-            <span>
-              <span className="status-dot" />{t.chatStatus}
-            </span>
+    <div className={`chat-page ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      {mobileSidebarOpen && <button className="sidebar-scrim" aria-label={t.closeSidebar} onClick={() => setMobileSidebarOpen(false)} />}
+      <aside id="chat-sidebar" className={`chat-sidebar ${mobileSidebarOpen ? "mobile-open" : ""}`} aria-label={t.chatHistory}>
+        <div className="sidebar-topbar">
+          <Link className="sidebar-back" to="/home" title={t.backHome}><ChevronLeft size={20} /><span>{t.backHome}</span></Link>
+          <button className="sidebar-collapse" aria-label={sidebarCollapsed ? t.expandSidebar : t.collapseSidebar} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((value) => !value)}>{sidebarCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}</button>
+          <button className="sidebar-mobile-close" aria-label={t.closeSidebar} onClick={() => setMobileSidebarOpen(false)}><X size={20} /></button>
+        </div>
+        <div className="sidebar-brand"><BrandFlower /><span><strong>Abeba</strong><small>{t.chatStatus}</small></span></div>
+        <button className="sidebar-new-chat" disabled={!session || busy} onClick={() => { setMobileSidebarOpen(false); void selectChat(); }} title={t.newChat}><Plus size={19} /><span>{t.newChat}</span></button>
+        {session && <div className="sidebar-history">
+          <label className="history-search"><Search size={16} /><span className="sr-only">{t.searchChats}</span><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder={t.searchChats} /></label>
+          <p className="sidebar-section-label">{t.chatHistory}</p>
+          <div className="history-list">
+            {filteredHistory.map((item) => <button className={chatId === item.id ? "active" : ""} key={item.id} disabled={busy} onClick={() => { setMobileSidebarOpen(false); void selectChat(item.id); }} title={item.preview}><MessageCircle size={16} /><span>{item.preview}</span></button>)}
+            {!history.isLoading && filteredHistory.length === 0 && <p className="history-empty">{historySearch ? t.noMatchingChats : t.noChats}</p>}
           </div>
+        </div>}
+        <div className="sidebar-safety" title={t.aiNote}><AlertTriangle size={18} /><div><p>{t.aiNote}</p><span>{t.historyNote}</span></div></div>
+      </aside>
+
+      <section className="chat-main">
+        <div className="chat-heading">
+          <button className="sidebar-mobile-trigger" aria-label={t.openSidebar} aria-controls="chat-sidebar" aria-expanded={mobileSidebarOpen} onClick={() => setMobileSidebarOpen(true)}><Menu size={21} /></button>
+          <div className="chat-title">
+            <img src="/others/home-chat-avatar.png" alt="" />
+            <div><h1>{t.ask}</h1><span><span className="status-dot" />{t.chatStatus}</span></div>
+          </div>
+          {session && <span className="chat-language-badge">{session.language === "am" ? "አማርኛ" : "English"}</span>}
         </div>
-        <button
-          className="outline-button"
-          disabled={!session || busy}
-          onClick={() => selectChat()}
-        >
-          <Plus size={18} />
-          {t.newChat}
-        </button>
-      </div>
-      {session && (
-        <div className="conversation-tools">
-          <label className="sr-only" htmlFor="history">
-            {t.conversation}
-          </label>
-          <select
-            id="history"
-            disabled={busy}
-            value={chatId || ""}
-            onChange={(e) => selectChat(Number(e.target.value))}
-          >
-            <option value="" disabled>
-              {t.chooseConversation}
-            </option>
-            {history.data?.results.map((h) => (
-              <option key={h.id} value={h.id}>
-                {h.preview}
-              </option>
-            ))}
-          </select>
-          <span>
-            {session.language === "am" ? "አማርኛ" : "English"} · shared chat
-            {t.sharedAllowance}
-          </span>
-        </div>
-      )}
-      <ErrorNotice
-        error={
-          error ||
-          (unavailable ? sessionError : undefined) ||
-          context.error ||
-          history.error
-        }
-      />
-      {!session ? (
-        <div className="chat-welcome">
-          <img src="/others/abeba-paused.jpg" alt="Abeba smiles and welcomes you" width="360" height="280" />
-          <h2>{t.questionsBelong}</h2>
-          <p>
-            {mini
-              ? t.telegramConnect
-              : t.browserConnect}
-          </p>
-          <button className="button" disabled={busy} onClick={connect}>
-            {busy
-              ? t.connecting
-              : mini
-                ? t.connectTelegram
-                : t.startChatting}
-          </button>
-        </div>
-      ) : !session.ai_consent ? (
-        <div className="consent-card">
-          <Sparkles />
-          <h2>{t.beforeChat}</h2>
-          <p>{t.consentOne}</p>
-          <p>{t.consentTwo}</p>
-          <button className="button" disabled={busy} onClick={consent}>
-            {t.agree}
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="message-area" aria-label="Conversation">
-            <p className="chat-date">{t.kindness}</p>
-            {messages.length === 0 && (
-              <div className="empty-chat">
-                <img className="empty-chat-mascot" src="/others/abeba-waving-2.gif" alt="Abeba waves hello" />
-                <h2>{t.whatsOnMind}</h2>
-                <p>{t.noPerfectWay}</p>
-                <div className="suggestions">
-                  {prompts[locale].map((p) => (
-                    <button key={p} onClick={() => setDraft(p)}>
-                      {p}
-                      <ArrowUpRight size={16} />
-                    </button>
-                  ))}
-                </div>
+        <div className="chat-error"><ErrorNotice error={error || (unavailable ? sessionError : undefined) || context.error || history.error} /></div>
+        {!session ? (
+          <div className="chat-stage"><div className="chat-welcome"><img src="/others/abeba-paused.jpg" alt="Abeba smiles and welcomes you" width="360" height="280" /><h2>{t.questionsBelong}</h2><p>{mini ? t.telegramConnect : t.browserConnect}</p><button className="button" disabled={busy} onClick={connect}>{busy ? t.connecting : mini ? t.connectTelegram : t.startChatting}</button></div></div>
+        ) : !session.ai_consent ? (
+          <div className="chat-stage"><div className="consent-card"><Sparkles /><h2>{t.beforeChat}</h2><p>{t.consentOne}</p><p>{t.consentTwo}</p><button className="button" disabled={busy} onClick={consent}>{t.agree}</button></div></div>
+        ) : (
+          <>
+            <div className="message-area" aria-label={t.conversation}>
+              <div className="message-stream">
+                <p className="chat-date">{t.kindness}</p>
+                {messages.length === 0 && <div className="empty-chat"><img className="empty-chat-mascot" src="/others/abeba-waving-2.gif" alt="Abeba waves hello" /><h2>{t.whatsOnMind}</h2><p>{t.noPerfectWay}</p><div className="suggestions">{prompts[locale].map((prompt) => <button key={prompt} onClick={() => { setDraft(prompt); requestAnimationFrame(() => composerInput.current?.focus()); }}>{prompt}<ArrowUpRight size={16} /></button>)}</div></div>}
+                {messages.map((message) => <article className={`message ${message.role}`} key={message.id}><span className="message-name">{message.role === "assistant" ? "✿ Abeba" : t.you}</span><Markdown>{message.text}</Markdown>{message.structured?.examples?.map((example, index) => <blockquote key={index}>{example}</blockquote>)}{message.structured?.links?.filter((link) => safeHttps(link.url)).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer">{link.title} ↗</a>)}{message.structured?.suggested_followups?.map((followup, index) => <button className="followup" key={index} onClick={() => { setDraft(followup); requestAnimationFrame(() => composerInput.current?.focus()); }}>{followup}</button>)}</article>)}
+                {pendingMessage && <article className="message user pending-message"><span className="message-name">{t.you}</span><p>{pendingMessage}</p></article>}
+                {pendingMessage && <div className="thinking" role="status" aria-live="polite"><img src="/others/abeba-talking.gif" alt="" /><div><strong>{t.thinking}</strong><span>{t.thinkingDetail}</span><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
+                <div ref={end} />
               </div>
-            )}
-            {messages.map((m) => (
-              <article className={`message ${m.role}`} key={m.id}>
-                <span className="message-name">
-                  {m.role === "assistant" ? "✿ Abeba" : t.you}
-                </span>
-                <Markdown>{m.text}</Markdown>
-                {m.structured?.examples?.map((e, i) => (
-                  <blockquote key={i}>{e}</blockquote>
-                ))}
-                {m.structured?.links
-                  ?.filter((l) => safeHttps(l.url))
-                  .map((l) => (
-                    <a
-                      key={l.url}
-                      href={l.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {l.title} ↗
-                    </a>
-                  ))}
-                {m.structured?.suggested_followups?.map((f, i) => (
-                  <button
-                    className="followup"
-                    key={i}
-                    onClick={() => {
-                      setDraft(f);
-                      requestAnimationFrame(() => composerInput.current?.focus());
-                    }}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </article>
-            ))}
-            {pendingMessage && <article className="message user pending-message"><span className="message-name">{t.you}</span><p>{pendingMessage}</p></article>}
-            {pendingMessage && <div className="thinking" role="status" aria-live="polite"><img src="/others/abeba-talking.gif" alt="" /><div><strong>{t.thinking}</strong><span>{t.thinkingDetail}</span><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
-            <div ref={end} />
-          </div>
-          {uncertain && (
-            <div className="notice">
-              {t.requestUncertain}
-              <button
-                onClick={() =>
-                  void qc.invalidateQueries({ queryKey: ["context"] })
-                }
-              >
-                {t.refreshHistory}
-              </button>
-              <button disabled={busy} onClick={() => send(true)}>
-                {t.retry}
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => {
-                  setUncertain(false);
-                  retryRequest.current = null;
-                }}
-              >
-                {t.dismiss}
-              </button>
             </div>
-          )}
-          <form
-            className="composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-          >
-            <label className="sr-only" htmlFor="message">
-              {t.yourMessage}
-            </label>
-            <textarea
-              id="message"
-              ref={composerInput}
-              placeholder={t.messagePlaceholder}
-              value={draft}
-              maxLength={6000}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  !e.shiftKey &&
-                  !e.nativeEvent.isComposing
-                ) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-            />
-            <button
-              aria-label={t.send}
-              disabled={busy || uncertain || !draft.trim()}
-            >
-              <ArrowUp size={22} />
-            </button>
-          </form>
-          <span className={`character-count ${draft.length > 5400 ? "near-limit" : ""}`}>{draft.length ? `${draft.length.toLocaleString()} / 6,000` : ""}</span>
-          <p className="chat-footnote">
-            {t.aiNote}
-            <br />
-            {t.historyNote}
-          </p>
-        </>
-      )}
+            {uncertain && <div className="notice chat-retry-notice">{t.requestUncertain}<button onClick={() => void qc.invalidateQueries({ queryKey: ["context"] })}>{t.refreshHistory}</button><button disabled={busy} onClick={() => send(true)}>{t.retry}</button><button disabled={busy} onClick={() => { setUncertain(false); retryRequest.current = null; }}>{t.dismiss}</button></div>}
+            <div className="composer-shell"><form className="composer" onSubmit={(event) => { event.preventDefault(); void send(); }}><label className="sr-only" htmlFor="message">{t.yourMessage}</label><textarea id="message" ref={composerInput} placeholder={t.messagePlaceholder} value={draft} maxLength={6000} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><button aria-label={t.send} disabled={busy || uncertain || !draft.trim()}><ArrowUp size={22} /></button></form><span className={`character-count ${draft.length > 5400 ? "near-limit" : ""}`}>{draft.length ? `${draft.length.toLocaleString()} / 6,000` : ""}</span></div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
