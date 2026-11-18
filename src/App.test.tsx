@@ -76,6 +76,11 @@ describe("localization and learn pages", () => {
       "href",
       "/learn/mental-health?language=en",
     );
+    fireEvent.mouseLeave(learnMenu.closest(".learn-nav")!);
+    expect(screen.getByRole("heading", { name: "What would you like to understand?" })).toBeInTheDocument();
+    fireEvent.mouseEnter(learnNavigation!);
+    await new Promise((resolve) => window.setTimeout(resolve, 280));
+    expect(screen.getByRole("heading", { name: "What would you like to understand?" })).toBeInTheDocument();
 
     Object.defineProperty(window, "scrollY", { configurable: true, value: 120 });
     fireEvent.scroll(window);

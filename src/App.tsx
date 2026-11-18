@@ -131,6 +131,7 @@ export default function App() {
   const mini = location.pathname.startsWith("/telegram");
   const chatLayout = location.pathname === "/chat" || mini;
   const headerRef = useRef<HTMLElement>(null);
+  const learnMenuCloseTimer = useRef<number | null>(null);
   const [headerCompact, setHeaderCompact] = useState(false);
   const [learnMenuOpen, setLearnMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -162,6 +163,20 @@ export default function App() {
     queryFn: () => api<{ results: Topic[] }>(`learn/topics/?language=${locale}`),
   });
   const navTopics = (navigationTopics.data?.results || []).slice(0, 6);
+  function openLearnMenu() {
+    if (learnMenuCloseTimer.current !== null) {
+      window.clearTimeout(learnMenuCloseTimer.current);
+      learnMenuCloseTimer.current = null;
+    }
+    setLearnMenuOpen(true);
+  }
+  function scheduleLearnMenuClose() {
+    if (learnMenuCloseTimer.current !== null) window.clearTimeout(learnMenuCloseTimer.current);
+    learnMenuCloseTimer.current = window.setTimeout(() => {
+      setLearnMenuOpen(false);
+      learnMenuCloseTimer.current = null;
+    }, 240);
+  }
   useEffect(() => {
     const preferred = activeSession?.language;
     if ((preferred === "en" || preferred === "am") && !localStorage.getItem("abeba-locale")) {
@@ -218,6 +233,9 @@ export default function App() {
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, []);
+  useEffect(() => () => {
+    if (learnMenuCloseTimer.current !== null) window.clearTimeout(learnMenuCloseTimer.current);
+  }, []);
   useEffect(() => {
     if (!mini) return;
     let clean: (() => void) | undefined;
@@ -250,9 +268,9 @@ export default function App() {
           <Brand compact={headerCompact} />
           <nav className="desktop-nav" aria-label="Main navigation">
             <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={16} />{t.home}</NavLink>
-            <div className={`learn-nav ${learnMenuOpen ? "open" : ""}`} onMouseEnter={() => setLearnMenuOpen(true)} onMouseLeave={() => setLearnMenuOpen(false)}>
-              <button type="button" className={`nav-menu-trigger ${location.pathname.startsWith("/learn") ? "active" : ""}`} aria-expanded={learnMenuOpen} aria-controls="learn-navigation" onClick={() => setLearnMenuOpen(true)}><BookOpen size={16} />{t.learn}<ChevronDown className="nav-chevron" size={15} /></button>
-              <div className="learn-menu-wrap" id="learn-navigation" hidden={!learnMenuOpen}>
+            <div className={`learn-nav ${learnMenuOpen ? "open" : ""}`} onMouseEnter={openLearnMenu} onMouseLeave={scheduleLearnMenuClose} onFocus={openLearnMenu} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) scheduleLearnMenuClose(); }}>
+              <button type="button" className={`nav-menu-trigger ${location.pathname.startsWith("/learn") ? "active" : ""}`} aria-expanded={learnMenuOpen} aria-controls="learn-navigation" onClick={openLearnMenu}><BookOpen size={16} />{t.learn}<ChevronDown className="nav-chevron" size={15} /></button>
+              <div className="learn-menu-wrap" id="learn-navigation" hidden={!learnMenuOpen} onMouseEnter={openLearnMenu} onMouseLeave={scheduleLearnMenuClose}>
                 <div className="learn-mega-menu">
                   <div className="mega-heading"><div><span className="eyebrow">{t.featuredTopics}</span><h2>{t.browseTopics}</h2><p>{t.learnMenuIntro}</p></div><BrandFlower /></div>
                   <div className="mega-topic-grid">
