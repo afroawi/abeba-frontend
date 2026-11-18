@@ -46,6 +46,7 @@ import {
   Pause,
   Play,
   LoaderCircle,
+  ChevronDown,
 } from "lucide-react";
 import {
   api,
@@ -128,6 +129,11 @@ function Brand({ compact = false }: { compact?: boolean }) {
 export default function App() {
   const location = useLocation();
   const mini = location.pathname.startsWith("/telegram");
+  const chatLayout = location.pathname === "/chat" || mini;
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerCompact, setHeaderCompact] = useState(false);
+  const [learnMenuOpen, setLearnMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [location.pathname]);
@@ -149,6 +155,13 @@ export default function App() {
     return navigator.language.toLowerCase().startsWith("am") ? "am" : "en";
   });
   const t = translations[locale];
+  const navigationTopics = useQuery({
+    queryKey: ["topics", locale, ""],
+    enabled: !chatLayout,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => api<{ results: Topic[] }>(`learn/topics/?language=${locale}`),
+  });
+  const navTopics = (navigationTopics.data?.results || []).slice(0, 6);
   useEffect(() => {
     const preferred = activeSession?.language;
     if ((preferred === "en" || preferred === "am") && !localStorage.getItem("abeba-locale")) {
@@ -163,6 +176,48 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("abeba-theme", dark ? "dark" : "light");
   }, [dark]);
+  useEffect(() => {
+    if (chatLayout) return;
+    const updateHeader = () => {
+      setHeaderCompact((compact) => compact ? window.scrollY > 16 : window.scrollY > 72);
+      if (window.scrollY > 72) setLearnMenuOpen(false);
+    };
+    updateHeader();
+    window.addEventListener("scroll", updateHeader, { passive: true });
+    return () => window.removeEventListener("scroll", updateHeader);
+  }, [chatLayout]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileNavOpen]);
+  useEffect(() => {
+    setLearnMenuOpen(false);
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+  useEffect(() => {
+    const closeMenus = (event: PointerEvent) => {
+      if (!headerRef.current?.contains(event.target as Node)) {
+        setLearnMenuOpen(false);
+        setMobileNavOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLearnMenuOpen(false);
+        setMobileNavOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeMenus);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenus);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
   useEffect(() => {
     if (!mini) return;
     let clean: (() => void) | undefined;
@@ -186,17 +241,28 @@ export default function App() {
       .catch(() => {});
     return () => clean?.();
   }, [mini]);
-  const chatLayout = location.pathname === "/chat" || mini;
   return (
     <LocaleContext.Provider value={{ locale, setLocale }}>
     <div className={`app ${mini ? "mini" : ""} ${chatLayout ? "chat-layout" : ""}`}>
       <a className="skip-link" href="#main">{t.skip}</a>
-      {!chatLayout && <header className="site-header">
+      {!chatLayout && <header ref={headerRef} className={`site-header ${headerCompact ? "is-compact" : ""} ${mobileNavOpen ? "mobile-nav-open" : ""}`}>
         <div className="header-inner">
-          <Brand />
+          <Brand compact={headerCompact} />
           <nav className="desktop-nav" aria-label="Main navigation">
-            <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}>{t.home}</NavLink>
-            <NavLink to="/learn">{t.learn}</NavLink>
+            <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={16} />{t.home}</NavLink>
+            <div className={`learn-nav ${learnMenuOpen ? "open" : ""}`} onMouseEnter={() => setLearnMenuOpen(true)} onMouseLeave={() => setLearnMenuOpen(false)}>
+              <button type="button" className={`nav-menu-trigger ${location.pathname.startsWith("/learn") ? "active" : ""}`} aria-expanded={learnMenuOpen} aria-controls="learn-navigation" onClick={() => setLearnMenuOpen(true)}><BookOpen size={16} />{t.learn}<ChevronDown className="nav-chevron" size={15} /></button>
+              <div className="learn-menu-wrap" id="learn-navigation" hidden={!learnMenuOpen}>
+                <div className="learn-mega-menu">
+                  <div className="mega-heading"><div><span className="eyebrow">{t.featuredTopics}</span><h2>{t.browseTopics}</h2><p>{t.learnMenuIntro}</p></div><BrandFlower /></div>
+                  <div className="mega-topic-grid">
+                    {navigationTopics.isLoading && Array.from({ length: 4 }, (_, index) => <span className="mega-topic-skeleton" key={index} />)}
+                    {navTopics.map((topic, index) => <Link className="mega-topic-link" key={topic.slug} to={`/learn/${encodeURIComponent(topic.slug)}?language=${locale}`} onClick={() => setLearnMenuOpen(false)}><span className="mega-topic-number">{String(index + 1).padStart(2, "0")}</span><span><strong>{topic.title}</strong><small>{topic.summary || topic.description || t.closerLook}</small></span><ArrowUpRight size={15} /></Link>)}
+                  </div>
+                  <div className="mega-footer"><Link to={`/learn?language=${locale}`} onClick={() => setLearnMenuOpen(false)}>{t.viewAllTopics}<ArrowRight size={16} /></Link><Link to="/chat" onClick={() => setLearnMenuOpen(false)}>{t.ask}<MessageCircle size={16} /></Link></div>
+                </div>
+              </div>
+            </div>
             <NavLink to={mini ? "/telegram/chat" : "/chat"}><MessageCircle size={17} />{t.ask}</NavLink>
             <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer"><Send size={16} />{t.telegram}</a>
           </nav>
@@ -213,7 +279,17 @@ export default function App() {
               {dark ? <Sun size={19} /> : <Moon size={19} />}
             </button>
             <NavLink className="profile-link" to="/settings" aria-label={t.settings}><Settings size={19} /></NavLink>
+            <button className="mobile-menu-toggle" aria-label={mobileNavOpen ? t.closeMenu : t.openMenu} aria-expanded={mobileNavOpen} aria-controls="mobile-site-navigation" onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <X size={21} /> : <Menu size={21} />}</button>
           </div>
+        </div>
+        <div className="mobile-nav-panel" id="mobile-site-navigation" hidden={!mobileNavOpen}>
+          <nav aria-label={t.mainMenu}>
+            <NavLink to="/home" className={({ isActive }) => isActive || location.pathname === "/" ? "active" : ""}><Home size={18} /><span>{t.home}</span><ArrowRight size={16} /></NavLink>
+            <details open={location.pathname.startsWith("/learn")}><summary><BookOpen size={18} /><span>{t.learn}</span><ChevronDown size={16} /></summary><div className="mobile-topic-links">{navTopics.map((topic) => <Link key={topic.slug} to={`/learn/${encodeURIComponent(topic.slug)}?language=${locale}`}>{topic.title}<ArrowUpRight size={14} /></Link>)}<Link className="all-mobile-topics" to={`/learn?language=${locale}`}>{t.viewAllTopics}<ArrowRight size={14} /></Link></div></details>
+            <NavLink to="/chat"><MessageCircle size={18} /><span>{t.ask}</span><ArrowRight size={16} /></NavLink>
+            <NavLink to="/settings"><Settings size={18} /><span>{t.settings}</span><ArrowRight size={16} /></NavLink>
+          </nav>
+          <div className="mobile-nav-actions"><a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer"><Download size={17} />{t.googlePlay}</a><a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer"><Send size={17} />{t.openTelegram}</a></div>
         </div>
       </header>}
       <div className="workspace">

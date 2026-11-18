@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
   cleanup,
+  within,
 } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router";
@@ -45,12 +46,42 @@ function mount(path = "/chat") {
 }
 beforeEach(() => {
   localStorage.clear();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
   Element.prototype.scrollIntoView = vi.fn();
   window.scrollTo = vi.fn();
   vi.clearAllMocks();
 });
 
 describe("localization and learn pages", () => {
+  it("opens the Learn topic menu and compacts the header after scrolling", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "channels/session/") throw new ApiError(401, "Not connected");
+      if (path === "learn/topics/?language=en")
+        return {
+          results: [
+            { slug: "mental-health", title: "Mental health", summary: "Understand feelings and support." },
+            { slug: "menstruation", title: "Menstruation", summary: "Learn about your cycle." },
+          ],
+        } as never;
+      if (path === "announcements/") return { results: [] } as never;
+      throw new Error(`Unexpected ${path}`);
+    });
+    mount("/home");
+    const learnMenu = await screen.findByRole("button", { name: /Explore & learn/ });
+    fireEvent.click(learnMenu);
+    expect(screen.getByRole("heading", { name: "What would you like to understand?" })).toBeInTheDocument();
+    const learnNavigation = document.getElementById("learn-navigation");
+    expect(learnNavigation).not.toBeNull();
+    expect(within(learnNavigation!).getByRole("link", { name: /Mental health/ })).toHaveAttribute(
+      "href",
+      "/learn/mental-health?language=en",
+    );
+
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 120 });
+    fireEvent.scroll(window);
+    expect(screen.getByRole("banner")).toHaveClass("is-compact");
+  });
+
   it("links to the verified Android app and Telegram bot", async () => {
     vi.mocked(api).mockImplementation(async (path) => {
       if (path === "channels/session/") throw new ApiError(401, "Not connected");
