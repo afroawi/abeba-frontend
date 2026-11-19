@@ -663,14 +663,18 @@ h1, h2, h3 { font-family: "Fraunces", Georgia, serif; letter-spacing: -.035em; }
 .download-copy h2 { max-width: 670px; margin: 12px 0 18px; font-size: clamp(42px, 4.8vw, 66px); }
 .download-copy > p:not(.eyebrow) { max-width: 650px; color: var(--muted); font-size: 14px; line-height: 1.85; }
 .download-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
-.download-actions > a { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
-.download-actions > a:hover { transform: translateY(-3px); border-color: var(--teal); box-shadow: var(--shadow-lg); }
+.download-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; min-height: 79px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); text-align: left; box-shadow: var(--shadow-sm); }
+a.download-option:hover { transform: translateY(-3px); border-color: var(--teal); box-shadow: var(--shadow-lg); }
+.download-option.telegram-download { grid-column: 1 / -1; }
+.download-option:disabled { cursor: not-allowed; opacity: 1; }
+.download-option.ios-download { border-style: dashed; background: color-mix(in srgb, var(--surface) 82%, var(--soft)); color: var(--muted); box-shadow: none; }
 .download-icon { display: grid; place-items: center; width: 45px; height: 45px; border-radius: 13px; background: var(--soft); color: var(--teal); }
+.download-icon.ios-icon { background: color-mix(in srgb, var(--soft) 70%, #ececf2); color: var(--muted); }
 .download-icon.telegram-icon { background: #e3f4ff; color: #168dcc; }
-.download-actions a > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; }
-.download-actions small { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .12em; }
-.download-actions strong { margin: 1px 0; font-size: 12px; }
-.download-actions em { overflow: hidden; color: var(--muted); font-size: 9px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.download-option > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; }
+.download-actions small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+.download-actions strong { margin: 1px 0; font-size: 14px; }
+.download-actions em { overflow: hidden; color: var(--muted); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .learn-heading { display: flex; align-items: center; }
 .learn-heading > div { max-width: 72%; }
 .learn-heading-mascot { position: absolute; z-index: 1; width: 190px; height: 205px; right: 34px; bottom: -24px; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 15px 22px rgba(6,67,72,.12)); }
@@ -679,6 +683,7 @@ h1, h2, h3 { font-family: "Fraunces", Georgia, serif; letter-spacing: -.035em; }
   .header-download { display: none; }
   .download-copy { padding: 48px 42px; }
   .download-actions { grid-template-columns: 1fr; }
+  .download-option.telegram-download { grid-column: auto; }
 }
 
 @media (max-width: 760px) {

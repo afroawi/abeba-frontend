@@ -97,7 +97,8 @@ describe("localization and learn pages", () => {
     mount("/home");
     await screen.findByRole("heading", { name: "A little knowledge. A lot of confidence." });
     expect(screen.getAllByRole("link", { name: /Download for Android/ }).some((link) => link.getAttribute("href") === "https://play.google.com/store/apps/details?id=com.abeba.abebamobileapp")).toBe(true);
-    expect(screen.getAllByRole("link", { name: /Open Telegram bot/ }).some((link) => link.getAttribute("href") === "https://t.me/Abebachatbot")).toBe(true);
+    expect(screen.getAllByRole("link", { name: /Open Telegram bot/ }).some((link) => link.getAttribute("href") === "https://t.me/abebahealthbot")).toBe(true);
+    expect(screen.getByRole("button", { name: "iOS app. Coming soon" })).toBeDisabled();
   });
 
   it("persists the interface locale while requesting the selected content language", async () => {
@@ -273,7 +274,7 @@ describe("chat permissions and retries", () => {
     mount();
     expect(await screen.findByText("Before we chat")).toBeInTheDocument();
     expect(screen.queryByLabelText("Your message")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("I agree — continue"));
+    fireEvent.click(screen.getByText("I agree, continue"));
     expect(await screen.findByLabelText("Your message")).toBeInTheDocument();
     expect(api).toHaveBeenCalledWith("channels/preferences/", "PATCH", {
       ai_consent: true,

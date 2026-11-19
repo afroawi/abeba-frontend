@@ -82,7 +82,7 @@ const prompts: Record<Locale, string[]> = {
     "ጤናማ ግንኙነት ምን ይመስላል?",
   ],
 };
-const TELEGRAM_BOT_URL = "https://t.me/Abebachatbot";
+const TELEGRAM_BOT_URL = "https://t.me/abebahealthbot";
 const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.abeba.abebamobileapp";
 const chatLanguages = [
   { value: "en", label: "English" },
@@ -425,7 +425,7 @@ function HomePage() {
       </section>
       <section className="download-section" aria-labelledby="download-heading">
         <div className="download-visual"><span className="download-orbit" aria-hidden="true" /><img src="/others/abeba-waving-2.gif" alt="Abeba welcomes you to the app and Telegram bot" loading="lazy" /><BrandFlower /></div>
-        <div className="download-copy"><p className="eyebrow">{t.downloadEyebrow}</p><h2 id="download-heading">{t.downloadTitle}</h2><p>{t.downloadBody}</p><div className="download-actions"><a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer"><span className="download-icon"><Smartphone size={22} /></span><span><small>{t.androidLabel}</small><strong>{t.googlePlay}</strong><em>{t.androidDetail}</em></span><ArrowUpRight size={19} /></a><a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer"><span className="download-icon telegram-icon"><Send size={21} /></span><span><small>{t.telegramLabel}</small><strong>{t.openTelegram}</strong><em>{t.telegramDetail}</em></span><ArrowUpRight size={19} /></a></div></div>
+        <div className="download-copy"><p className="eyebrow">{t.downloadEyebrow}</p><h2 id="download-heading">{t.downloadTitle}</h2><p>{t.downloadBody}</p><div className="download-actions"><a className="download-option" href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer"><span className="download-icon"><Smartphone size={22} /></span><span><small>{t.androidLabel}</small><strong>{t.googlePlay}</strong><em>{t.androidDetail}</em></span><ArrowUpRight size={19} /></a><button className="download-option ios-download" type="button" disabled aria-label={`${t.iosLabel}. ${t.iosComingSoon}`}><span className="download-icon ios-icon"><Smartphone size={22} /></span><span><small>{t.iosLabel}</small><strong>{t.iosComingSoon}</strong><em>{t.iosDetail}</em></span></button><a className="download-option telegram-download" href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer"><span className="download-icon telegram-icon"><Send size={21} /></span><span><small>{t.telegramLabel}</small><strong>{t.openTelegram}</strong><em>{t.telegramDetail}</em></span><ArrowUpRight size={19} /></a></div></div>
       </section>
       {news.length > 0 && <section className="announcements"><div className="section-title"><div><p className="eyebrow">{t.communityEyebrow}</p><h2>{t.communityTitle}</h2></div></div><div className="announcement-grid">{news.slice(0, 3).map((n, i) => <article key={i}><span className="eyebrow">{t.communityNotes}</span><h3>{n.title}</h3><p>{n.body}</p></article>)}</div></section>}
       <ErrorNotice error={announcements.error} />

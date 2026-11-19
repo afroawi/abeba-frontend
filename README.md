@@ -1,4 +1,4 @@
-# Abeba frontend — initial implementation
+# Abeba frontend: initial implementation
 
 Responsive React/TypeScript/Vite app using the existing Django API. This first slice implements Home, public Learn search/pagination/article reading, browser chat, the Telegram chat Mini App, recent history, new conversations, AI consent, English/Amharic chat preferences and light/dark appearance. Brand assets come from the existing mobile repository.
 
